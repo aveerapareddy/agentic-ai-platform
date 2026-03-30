@@ -1,0 +1,11 @@
+# Local stack for development. Service images and ports to be defined when implementations exist.
+
+services:
+  # TODO: api-gateway, orchestrator, policy-engine, tool-runtime, knowledge-service,
+  # TODO: feedback-service, mukti-agent, databases, message bus as needed
+
+  placeholder:
+    image: alpine:3.20
+    command: ["sleep", "infinity"]
+    profiles:
+      - placeholder

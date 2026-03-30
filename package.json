@@ -1,0 +1,13 @@
+{
+  "name": "agentic-ai-platform",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Monorepo root; operator-console and shared JS tooling live under services/ and packages/",
+  "scripts": {
+    "lint": "echo TODO wire eslint",
+    "test": "echo TODO wire tests"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

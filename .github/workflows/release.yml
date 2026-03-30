@@ -1,0 +1,12 @@
+name: release
+
+on:
+  workflow_dispatch:
+  # TODO: tag push when release process is defined
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      # TODO: build artifacts, sign, publish packages/images per policy
+      - run: echo "TODO wire release"

@@ -1,0 +1,16 @@
+name: docs-check
+
+on:
+  push:
+    paths:
+      - "docs/**"
+  pull_request:
+    paths:
+      - "docs/**"
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      # TODO: markdown link check, spelling, optional diagram validation
+      - run: echo "TODO wire docs checks"
