@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "common-schemas"
+version = "0.0.0"
+description = "Shared Pydantic models for Agentic AI Platform contracts"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.0,<3"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
