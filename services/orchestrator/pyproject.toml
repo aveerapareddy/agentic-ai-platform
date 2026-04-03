@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orchestrator-service"
+version = "0.0.0"
+description = "Phase 1 execution orchestrator for Agentic AI Platform"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2,<3",
+    "common-schemas",
+    "sqlalchemy>=2,<3",
+    "psycopg[binary]>=3",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["app/tests"]
+pythonpath = [".", "../../packages/common-schemas/src"]
