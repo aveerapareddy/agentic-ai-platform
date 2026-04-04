@@ -12,6 +12,7 @@ class OrchestratorSettings:
 
     default_agent_reasoning: str = "reasoning_agent_v1"
     default_agent_validation: str = "validation_agent_v1"
+    default_agent_retrieval: str = "retrieval_agent_v1"
 
 
 @dataclass(frozen=True)

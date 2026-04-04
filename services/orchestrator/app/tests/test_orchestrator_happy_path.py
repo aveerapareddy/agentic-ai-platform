@@ -23,6 +23,17 @@ def test_happy_path_incident_workflow() -> None:
     assert done.status == ExecutionStatus.COMPLETED
     assert done.result is not None
     assert done.result.get("outcome") == "success"
+    assert done.result.get("workflow_type") == "incident_triage"
+    assert "incident_summary" in done.result
+    assert done.result.get("incident_summary")
+    assert done.result.get("likely_cause") in (
+        "config_drift",
+        "dependency_failure",
+        "capacity_saturation",
+    )
+    assert done.result.get("evidence_summary")
+    assert done.result.get("validation_status") == "passed"
+    assert done.result.get("confidence_score") is not None
     assert done.validation_summary is not None
     assert done.validation_summary.get("recorded") is True
     assert any(
@@ -30,8 +41,15 @@ def test_happy_path_incident_workflow() -> None:
         for row in done.trace_timeline
         if row.get("event_type") == "execution_status"
     )
+    started = [r for r in done.trace_timeline if r.get("event_type") == "step_started"]
+    completed = [r for r in done.trace_timeline if r.get("event_type") == "step_completed"]
+    validations = [r for r in done.trace_timeline if r.get("event_type") == "validation_performed"]
+    assert len(started) == 3
+    assert len(completed) == 3
+    assert len(validations) == 1
+    assert validations[0].get("validation_status") == "passed"
     steps = repo.list_steps_for_execution(ex.execution_id)
-    assert len(steps) == 2
+    assert len(steps) == 3
 
 
 def test_happy_path_default_workflow() -> None:
@@ -48,3 +66,5 @@ def test_happy_path_default_workflow() -> None:
     done = svc.start_execution(ex.execution_id)
     assert done.status == ExecutionStatus.COMPLETED
     assert len(repo.list_steps_for_execution(ex.execution_id)) == 2
+    assert done.result == {"outcome": "success", "steps": 2}
+    assert not any(r.get("event_type") == "step_status" for r in done.trace_timeline)

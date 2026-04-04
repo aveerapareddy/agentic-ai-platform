@@ -140,16 +140,14 @@ class ExecutionEngine:
                         ExecutionStatus.COMPLETED,
                     )
                     validation_summary = self._validation_summary_from_steps(steps)
+                    result_payload = self._build_completion_result(ex, steps)
                     ex = ex.model_copy(
                         update={
                             "status": ExecutionStatus.COMPLETED,
                             "updated_at": now,
                             "completed_at": now,
                             "validation_summary": validation_summary,
-                            "result": {
-                                "outcome": "success",
-                                "steps": len(steps),
-                            },
+                            "result": result_payload,
                         }
                     )
                     ex = _append_timeline(
@@ -210,11 +208,16 @@ class ExecutionEngine:
                 st_type = StepType.VALIDATION
             elif kind == "reasoning":
                 st_type = StepType.REASONING
+            elif kind == "retrieval":
+                st_type = StepType.RETRIEVAL
             else:
                 st_type = kind
             agent = spec.get("agent") or self._settings.default_agent_reasoning
             if kind == "validation":
                 agent = spec.get("agent") or self._settings.default_agent_validation
+            elif kind == "retrieval":
+                agent = spec.get("agent") or self._settings.default_agent_retrieval
+            step_name = spec.get("step_name")
             built.append(
                 Step(
                     step_id=sid,
@@ -224,6 +227,8 @@ class ExecutionEngine:
                     agent=agent,
                     input={
                         "planner_step_key": key,
+                        "planner_step_name": step_name,
+                        "workflow_type": execution.workflow_type,
                         "execution_input": execution.input,
                     },
                     status=StepStatus.PENDING,
@@ -285,8 +290,12 @@ class ExecutionEngine:
         if ex:
             ex = _append_timeline(
                 ex,
-                "step_status",
-                {"step_id": str(step.step_id), "status": StepStatus.RUNNING.value},
+                "step_started",
+                {
+                    "step_id": str(step.step_id),
+                    "planner_step_name": step.input.get("planner_step_name"),
+                    "workflow_type": step.input.get("workflow_type"),
+                },
                 now,
             )
             self._repo.update_execution(ex)
@@ -301,11 +310,60 @@ class ExecutionEngine:
         if ex2:
             ex2 = _append_timeline(
                 ex2,
-                "step_status",
-                {"step_id": str(step.step_id), "status": StepStatus.SUCCEEDED.value},
+                "step_completed",
+                {
+                    "step_id": str(step.step_id),
+                    "planner_step_name": step.input.get("planner_step_name"),
+                    "workflow_type": step.input.get("workflow_type"),
+                },
                 now,
             )
+            if self._is_validation_step(done):
+                ex2 = _append_timeline(
+                    ex2,
+                    "validation_performed",
+                    {
+                        "step_id": str(step.step_id),
+                        "planner_step_name": step.input.get("planner_step_name"),
+                        "validation_status": (result.output or {}).get("validation_status")
+                        if isinstance(result.output, dict)
+                        else None,
+                    },
+                    now,
+                )
             self._repo.update_execution(ex2)
+
+    def _build_completion_result(self, execution: Execution, steps: list[Step]) -> dict[str, Any]:
+        """Workflow-specific terminal result; generic workflows keep a minimal success payload."""
+        if execution.workflow_type != "incident_triage":
+            return {"outcome": "success", "steps": len(steps)}
+        by_name: dict[str, dict[str, Any]] = {}
+        for s in steps:
+            name = s.input.get("planner_step_name")
+            if not isinstance(name, str):
+                continue
+            res = self._repo.get_step_result(s.step_id)
+            if res is not None and isinstance(res.output, dict):
+                by_name[name] = dict(res.output)
+        analyze = by_name.get("analyze_incident", {})
+        gather = by_name.get("gather_evidence", {})
+        validate = by_name.get("validate_incident", {})
+        conf = validate.get("confidence_score")
+        conf_f: float | None
+        if isinstance(conf, (int, float)):
+            conf_f = float(conf)
+        else:
+            conf_f = None
+        return {
+            "outcome": "success",
+            "workflow_type": "incident_triage",
+            "incident_summary": analyze.get("incident_summary"),
+            "likely_cause": validate.get("likely_cause"),
+            "evidence_summary": gather.get("evidence_summary"),
+            "validation_status": validate.get("validation_status"),
+            "confidence_score": conf_f,
+            "steps": len(steps),
+        }
 
     def _validation_summary_from_steps(self, steps: list[Step]) -> dict[str, Any]:
         for s in steps:
