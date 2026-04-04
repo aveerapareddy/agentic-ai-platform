@@ -24,6 +24,9 @@ def test_happy_path_incident_workflow() -> None:
     assert done.result is not None
     assert done.result.get("outcome") == "success"
     assert done.result.get("workflow_type") == "incident_triage"
+    assert done.result.get("policy_decision") == "allow"
+    assert done.result.get("approval_status") == "not_required"
+    assert done.result.get("proposed_action", {}).get("type") == "escalate_incident"
     assert "incident_summary" in done.result
     assert done.result.get("incident_summary")
     assert done.result.get("likely_cause") in (
@@ -48,6 +51,11 @@ def test_happy_path_incident_workflow() -> None:
     assert len(completed) == 3
     assert len(validations) == 1
     assert validations[0].get("validation_status") == "passed"
+    assert any(r.get("event_type") == "knowledge_retrieved" for r in done.trace_timeline)
+    assert len([r for r in done.trace_timeline if r.get("event_type") == "tool_call_completed"]) >= 2
+    assert any(r.get("event_type") == "action_proposed" for r in done.trace_timeline)
+    assert any(r.get("event_type") == "policy_evaluated" for r in done.trace_timeline)
+    assert any(r.get("event_type") == "governed_outcome" for r in done.trace_timeline)
     steps = repo.list_steps_for_execution(ex.execution_id)
     assert len(steps) == 3
 

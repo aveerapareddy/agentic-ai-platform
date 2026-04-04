@@ -10,6 +10,9 @@ requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2,<3",
     "common-schemas",
+    "policy-engine @ file:../policy-engine",
+    "tool-runtime @ file:../tool-runtime",
+    "knowledge-service @ file:../knowledge-service",
     "sqlalchemy>=2,<3",
     "psycopg[binary]>=3",
 ]
@@ -23,4 +26,10 @@ dev = ["pytest>=8"]
 
 [tool.pytest.ini_options]
 testpaths = ["app/tests"]
-pythonpath = [".", "../../packages/common-schemas/src"]
+pythonpath = [
+    ".",
+    "../../packages/common-schemas/src",
+    "../policy-engine",
+    "../tool-runtime",
+    "../knowledge-service",
+]

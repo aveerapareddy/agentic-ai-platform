@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "policy-engine"
+version = "0.0.0"
+description = "Deterministic policy evaluation for Agentic AI Platform (Phase 3)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2,<3",
+    "common-schemas",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["policy_engine*"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "../../packages/common-schemas/src"]

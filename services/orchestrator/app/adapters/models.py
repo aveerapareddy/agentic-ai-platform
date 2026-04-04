@@ -111,6 +111,42 @@ class ExecutionStepRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
+class ToolCallRow(Base):
+    __tablename__ = "tool_calls"
+
+    tool_call_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    execution_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("executions.execution_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    step_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("execution_steps.step_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    execution_context_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("execution_context.context_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    action_proposal_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("action_proposals.proposal_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    tool_name: Mapped[str] = mapped_column(Text, nullable=False)
+    side_effect_class: Mapped[str] = mapped_column(Text, nullable=False)
+    idempotency: Mapped[str] = mapped_column(Text, nullable=False)
+    input: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    output: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class StepResultRow(Base):
     __tablename__ = "step_results"
 
@@ -131,5 +167,77 @@ class StepResultRow(Base):
     confidence_detail: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     completeness: Mapped[str | None] = mapped_column(Text, nullable=True)
     validation_outcome: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ActionProposalRow(Base):
+    __tablename__ = "action_proposals"
+
+    proposal_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    execution_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("executions.execution_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    step_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("execution_steps.step_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    action_type: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    risk_level: Mapped[str] = mapped_column(Text, nullable=False)
+    requires_approval: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="proposed")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class PolicyEvaluationRow(Base):
+    __tablename__ = "policy_evaluations"
+
+    evaluation_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    execution_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("executions.execution_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    execution_context_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("execution_context.context_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    decision: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    evaluated_rules: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, server_default="[]")
+    subject_ref: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class ApprovalRow(Base):
+    __tablename__ = "approvals"
+
+    approval_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    execution_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("executions.execution_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    policy_evaluation_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("policy_evaluations.evaluation_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    action_proposal_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("action_proposals.proposal_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    approver: Mapped[str] = mapped_column(Text, nullable=False)
+    decision: Mapped[str] = mapped_column(Text, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

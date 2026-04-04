@@ -8,17 +8,28 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from common_schemas import (
+    ActionProposal,
+    ActionProposalStatus,
+    Approval,
+    ApprovalDecision,
     Execution,
     ExecutionContext,
     ExecutionMode,
     ExecutionPlan,
     ExecutionStatus,
+    PolicyDecision,
+    PolicyEvaluation,
+    RiskLevel,
     Step,
     StepCompleteness,
     StepDependency,
     StepResult,
     StepStatus,
     StepType,
+    ToolCall,
+    ToolCallStatus,
+    ToolIdempotency,
+    ToolSideEffectClass,
     ValidationOutcome,
 )
 from sqlalchemy import inspect as sa_inspect
@@ -26,11 +37,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.models import (
+    ActionProposalRow,
+    ApprovalRow,
     ExecutionContextRow,
     ExecutionPlanRow,
     ExecutionRow,
     ExecutionStepRow,
+    PolicyEvaluationRow,
     StepResultRow,
+    ToolCallRow,
 )
 
 
@@ -55,6 +70,19 @@ class Repository(Protocol):
     def save_step_result(self, result: StepResult) -> None: ...
     def get_step_result(self, step_id: UUID) -> StepResult | None: ...
 
+    def save_action_proposal(self, proposal: ActionProposal) -> None: ...
+    def get_action_proposal(self, proposal_id: UUID) -> ActionProposal | None: ...
+
+    def save_policy_evaluation(self, evaluation: PolicyEvaluation) -> None: ...
+    def get_policy_evaluation(self, evaluation_id: UUID) -> PolicyEvaluation | None: ...
+
+    def save_approval(self, approval: Approval) -> None: ...
+    def get_approval(self, approval_id: UUID) -> Approval | None: ...
+
+    def save_tool_call(self, tool_call: ToolCall) -> None: ...
+    def get_tool_call(self, tool_call_id: UUID) -> ToolCall | None: ...
+    def list_tool_calls_for_step(self, step_id: UUID) -> list[ToolCall]: ...
+
 
 class InMemoryRepository:
     """Volatile store; structurally aligned with relational persistence."""
@@ -65,6 +93,10 @@ class InMemoryRepository:
         self._plans: dict[UUID, ExecutionPlan] = {}
         self._steps: dict[UUID, Step] = {}
         self._step_results: dict[UUID, StepResult] = {}
+        self._action_proposals: dict[UUID, ActionProposal] = {}
+        self._policy_evaluations: dict[UUID, PolicyEvaluation] = {}
+        self._approvals: dict[UUID, Approval] = {}
+        self._tool_calls: dict[UUID, ToolCall] = {}
 
     def save_context(self, context: ExecutionContext) -> None:
         self._contexts[context.context_id] = context
@@ -113,6 +145,36 @@ class InMemoryRepository:
 
     def get_step_result(self, step_id: UUID) -> StepResult | None:
         return self._step_results.get(step_id)
+
+    def save_action_proposal(self, proposal: ActionProposal) -> None:
+        self._action_proposals[proposal.proposal_id] = proposal
+
+    def get_action_proposal(self, proposal_id: UUID) -> ActionProposal | None:
+        return self._action_proposals.get(proposal_id)
+
+    def save_policy_evaluation(self, evaluation: PolicyEvaluation) -> None:
+        self._policy_evaluations[evaluation.evaluation_id] = evaluation
+
+    def get_policy_evaluation(self, evaluation_id: UUID) -> PolicyEvaluation | None:
+        return self._policy_evaluations.get(evaluation_id)
+
+    def save_approval(self, approval: Approval) -> None:
+        self._approvals[approval.approval_id] = approval
+
+    def get_approval(self, approval_id: UUID) -> Approval | None:
+        return self._approvals.get(approval_id)
+
+    def save_tool_call(self, tool_call: ToolCall) -> None:
+        self._tool_calls[tool_call.tool_call_id] = tool_call
+
+    def get_tool_call(self, tool_call_id: UUID) -> ToolCall | None:
+        return self._tool_calls.get(tool_call_id)
+
+    def list_tool_calls_for_step(self, step_id: UUID) -> list[ToolCall]:
+        return sorted(
+            (tc for tc in self._tool_calls.values() if tc.step_id == step_id),
+            key=lambda tc: tc.created_at,
+        )
 
 
 # 001_initial_schema.sql has no execution_mode column; reserve a JSONB key inside executions.input for round-trip.
@@ -379,6 +441,134 @@ def _row_to_step_result(row: StepResultRow) -> StepResult:
     )
 
 
+def _proposal_to_row(p: ActionProposal) -> ActionProposalRow:
+    return ActionProposalRow(
+        proposal_id=p.proposal_id,
+        execution_id=p.execution_id,
+        step_id=p.step_id,
+        action_type=p.action_type,
+        payload=dict(p.payload),
+        risk_level=p.risk_level.value,
+        requires_approval=p.requires_approval,
+        status=p.status.value,
+        created_at=p.created_at,
+        updated_at=p.updated_at,
+    )
+
+
+def _row_to_proposal(row: ActionProposalRow) -> ActionProposal:
+    return ActionProposal(
+        proposal_id=row.proposal_id,
+        execution_id=row.execution_id,
+        step_id=row.step_id,
+        action_type=row.action_type,
+        payload=dict(row.payload or {}),
+        risk_level=RiskLevel(row.risk_level),
+        requires_approval=row.requires_approval,
+        status=ActionProposalStatus(row.status),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _evaluation_to_row(e: PolicyEvaluation) -> PolicyEvaluationRow:
+    return PolicyEvaluationRow(
+        evaluation_id=e.evaluation_id,
+        execution_id=e.execution_id,
+        execution_context_id=e.execution_context_id,
+        decision=e.decision.value,
+        reason=e.reason,
+        evaluated_rules=list(e.evaluated_rules),
+        subject_ref=dict(e.subject_ref),
+        created_at=e.created_at,
+        updated_at=e.updated_at,
+    )
+
+
+def _row_to_evaluation(row: PolicyEvaluationRow) -> PolicyEvaluation:
+    return PolicyEvaluation(
+        evaluation_id=row.evaluation_id,
+        execution_id=row.execution_id,
+        execution_context_id=row.execution_context_id,
+        decision=PolicyDecision(row.decision),
+        reason=row.reason,
+        evaluated_rules=list(row.evaluated_rules or []),
+        subject_ref=dict(row.subject_ref or {}),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _approval_to_row(a: Approval) -> ApprovalRow:
+    return ApprovalRow(
+        approval_id=a.approval_id,
+        execution_id=a.execution_id,
+        policy_evaluation_id=a.policy_evaluation_id,
+        action_proposal_id=a.action_proposal_id,
+        approver=a.approver,
+        decision=a.decision.value,
+        notes=a.notes,
+        decided_at=a.decided_at,
+        created_at=a.created_at,
+        updated_at=a.updated_at,
+    )
+
+
+def _row_to_approval(row: ApprovalRow) -> Approval:
+    return Approval(
+        approval_id=row.approval_id,
+        execution_id=row.execution_id,
+        policy_evaluation_id=row.policy_evaluation_id,
+        action_proposal_id=row.action_proposal_id,
+        approver=row.approver,
+        decision=ApprovalDecision(row.decision),
+        notes=row.notes,
+        decided_at=row.decided_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _tool_call_to_row(tc: ToolCall) -> ToolCallRow:
+    return ToolCallRow(
+        tool_call_id=tc.tool_call_id,
+        execution_id=tc.execution_id,
+        step_id=tc.step_id,
+        execution_context_id=tc.execution_context_id,
+        action_proposal_id=tc.action_proposal_id,
+        tool_name=tc.tool_name,
+        side_effect_class=tc.side_effect_class.value,
+        idempotency=tc.idempotency.value,
+        input=dict(tc.input),
+        output=dict(tc.output) if tc.output is not None else None,
+        status=tc.status.value,
+        latency_ms=tc.latency_ms,
+        error=dict(tc.error) if tc.error is not None else None,
+        created_at=tc.created_at,
+        updated_at=tc.updated_at,
+    )
+
+
+def _row_to_tool_call(row: ToolCallRow) -> ToolCall:
+    return ToolCall(
+        tool_call_id=row.tool_call_id,
+        execution_id=row.execution_id,
+        step_id=row.step_id,
+        execution_context_id=row.execution_context_id,
+        action_proposal_id=row.action_proposal_id,
+        tool_name=row.tool_name,
+        side_effect_class=ToolSideEffectClass(row.side_effect_class),
+        idempotency=ToolIdempotency(row.idempotency),
+        input=dict(row.input or {}),
+        output=dict(row.output) if row.output is not None else None,
+        status=ToolCallStatus(row.status),
+        latency_ms=row.latency_ms,
+        error=dict(row.error) if row.error is not None else None,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
 class PostgresRepository:
     """PostgreSQL adapter: maps ORM rows to common_schemas models (no runtime logic)."""
 
@@ -475,3 +665,53 @@ class PostgresRepository:
         with self._session_factory() as session:
             row = session.scalar(select(StepResultRow).where(StepResultRow.step_id == step_id))
             return _row_to_step_result(row) if row is not None else None
+
+    def save_action_proposal(self, proposal: ActionProposal) -> None:
+        with self._session_factory() as session:
+            session.merge(_proposal_to_row(proposal))
+            session.commit()
+
+    def get_action_proposal(self, proposal_id: UUID) -> ActionProposal | None:
+        with self._session_factory() as session:
+            row = session.get(ActionProposalRow, proposal_id)
+            return _row_to_proposal(row) if row is not None else None
+
+    def save_policy_evaluation(self, evaluation: PolicyEvaluation) -> None:
+        with self._session_factory() as session:
+            session.merge(_evaluation_to_row(evaluation))
+            session.commit()
+
+    def get_policy_evaluation(self, evaluation_id: UUID) -> PolicyEvaluation | None:
+        with self._session_factory() as session:
+            row = session.get(PolicyEvaluationRow, evaluation_id)
+            return _row_to_evaluation(row) if row is not None else None
+
+    def save_approval(self, approval: Approval) -> None:
+        with self._session_factory() as session:
+            session.merge(_approval_to_row(approval))
+            session.commit()
+
+    def get_approval(self, approval_id: UUID) -> Approval | None:
+        with self._session_factory() as session:
+            row = session.get(ApprovalRow, approval_id)
+            return _row_to_approval(row) if row is not None else None
+
+    def save_tool_call(self, tool_call: ToolCall) -> None:
+        with self._session_factory() as session:
+            session.merge(_tool_call_to_row(tool_call))
+            session.commit()
+
+    def get_tool_call(self, tool_call_id: UUID) -> ToolCall | None:
+        with self._session_factory() as session:
+            row = session.get(ToolCallRow, tool_call_id)
+            return _row_to_tool_call(row) if row is not None else None
+
+    def list_tool_calls_for_step(self, step_id: UUID) -> list[ToolCall]:
+        with self._session_factory() as session:
+            stmt = (
+                select(ToolCallRow)
+                .where(ToolCallRow.step_id == step_id)
+                .order_by(ToolCallRow.created_at.asc())
+            )
+            rows = session.scalars(stmt).all()
+            return [_row_to_tool_call(r) for r in rows]

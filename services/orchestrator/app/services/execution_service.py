@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from common_schemas import (
+    ApprovalDecision,
     ContextId,
     Execution,
     ExecutionContext,
@@ -84,3 +85,19 @@ class ExecutionService:
             return self._engine.run_execution(execution_id)
         except OrchestrationError as e:
             return fail_execution(self._repo, execution_id, reason=str(e))
+
+    def submit_approval(
+        self,
+        execution_id: UUID,
+        *,
+        approver: str,
+        decision: ApprovalDecision,
+        notes: str | None = None,
+    ) -> Execution:
+        """Record approval for executions in AWAITING_APPROVAL (Phase 3 incident triage)."""
+        return self._engine.submit_approval(
+            execution_id,
+            approver=approver,
+            decision=decision,
+            notes=notes,
+        )

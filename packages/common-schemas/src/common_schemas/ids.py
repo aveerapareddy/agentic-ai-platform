@@ -15,5 +15,8 @@ FeedbackId: TypeAlias = UUID
 PlanId: TypeAlias = UUID
 PolicyEvaluationId: TypeAlias = UUID
 ResultId: TypeAlias = UUID
+RetrievalId: TypeAlias = UUID
+"""Correlation id for a single knowledge-service retrieval response."""
+
 StepId: TypeAlias = UUID
 ToolCallId: TypeAlias = UUID

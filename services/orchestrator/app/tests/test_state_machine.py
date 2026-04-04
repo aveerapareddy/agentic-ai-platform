@@ -36,6 +36,18 @@ def test_execution_executing_to_completed_invalid() -> None:
         validate_execution_transition(ExecutionStatus.EXECUTING, ExecutionStatus.COMPLETED)
 
 
+def test_execution_validating_to_awaiting_approval_ok() -> None:
+    validate_execution_transition(ExecutionStatus.VALIDATING, ExecutionStatus.AWAITING_APPROVAL)
+
+
+def test_execution_awaiting_approval_to_completed_ok() -> None:
+    validate_execution_transition(ExecutionStatus.AWAITING_APPROVAL, ExecutionStatus.COMPLETED)
+
+
+def test_execution_awaiting_approval_to_failed_ok() -> None:
+    validate_execution_transition(ExecutionStatus.AWAITING_APPROVAL, ExecutionStatus.FAILED)
+
+
 def test_step_pending_to_running_to_succeeded() -> None:
     validate_step_transition(StepStatus.PENDING, StepStatus.RUNNING)
     validate_step_transition(StepStatus.RUNNING, StepStatus.SUCCEEDED)

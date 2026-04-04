@@ -21,6 +21,9 @@ _EXECUTION_ALLOWED: set[tuple[ExecutionStatus, ExecutionStatus]] = {
     (ExecutionStatus.VALIDATING, ExecutionStatus.COMPLETED),
     (ExecutionStatus.VALIDATING, ExecutionStatus.EXECUTING),
     (ExecutionStatus.VALIDATING, ExecutionStatus.FAILED),
+    (ExecutionStatus.VALIDATING, ExecutionStatus.AWAITING_APPROVAL),
+    (ExecutionStatus.AWAITING_APPROVAL, ExecutionStatus.COMPLETED),
+    (ExecutionStatus.AWAITING_APPROVAL, ExecutionStatus.FAILED),
 }
 
 _STEP_ALLOWED: set[tuple[StepStatus, StepStatus]] = {

@@ -28,6 +28,31 @@ class ToolCallStatus(StrEnum):
     REJECTED_BY_POLICY = "rejected_by_policy"
 
 
+class RegisteredTool(BaseModel):
+    """Registration metadata for a tool in the tool-runtime registry (runtime model §3.6)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    tool_name: str
+    side_effect_class: ToolSideEffectClass
+    idempotency: ToolIdempotency
+    timeout_bounds_ms: int = Field(default=30_000, ge=1)
+    description: str = ""
+
+
+class ToolInvokeRequest(BaseModel):
+    """Orchestrator → tool-runtime: execute one registered tool under execution context."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    execution_id: ExecutionId
+    step_id: StepId
+    execution_context_id: ContextId
+    tool_name: str
+    input: dict[str, Any] = Field(default_factory=dict)
+    action_proposal_id: ActionId | None = None
+
+
 class ToolCallInput(RootModel[dict[str, Any]]):
     """Arguments after schema validation at the tool boundary; shape is tool-specific."""
 

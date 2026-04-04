@@ -26,9 +26,11 @@ from .ids import (
     PlanId,
     PolicyEvaluationId,
     ResultId,
+    RetrievalId,
     StepId,
     ToolCallId,
 )
+from .knowledge import EvidenceChunk, RetrievalRequest, RetrievalResponse
 from .policy import (
     ActionProposal,
     ActionProposalStatus,
@@ -39,11 +41,13 @@ from .policy import (
     RiskLevel,
 )
 from .tooling import (
+    RegisteredTool,
     ToolCall,
     ToolCallInput,
     ToolCallOutput,
     ToolCallStatus,
     ToolIdempotency,
+    ToolInvokeRequest,
     ToolSideEffectClass,
 )
 from .workflow import (
@@ -74,6 +78,7 @@ __all__ = [
     "ExecutionStatus",
     "ExecutionSummary",
     "ExecutionTraceReference",
+    "EvidenceChunk",
     "FeedbackId",
     "FeedbackSource",
     "ImprovementSuggestion",
@@ -85,7 +90,11 @@ __all__ = [
     "PolicyEvaluationId",
     "ReplayMode",
     "ReplayRequest",
+    "RegisteredTool",
     "ResultId",
+    "RetrievalId",
+    "RetrievalRequest",
+    "RetrievalResponse",
     "RiskLevel",
     "Step",
     "StepCompleteness",
@@ -100,6 +109,7 @@ __all__ = [
     "ToolCallOutput",
     "ToolCallStatus",
     "ToolIdempotency",
+    "ToolInvokeRequest",
     "ToolSideEffectClass",
     "ValidationOutcome",
 ]
