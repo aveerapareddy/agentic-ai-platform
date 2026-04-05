@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "feedback-service"
+version = "0.0.0"
+description = "Operator feedback ingestion and execution_feedback persistence (Phase 6)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2,<3",
+    "common-schemas",
+    "sqlalchemy>=2,<3",
+    "psycopg[binary]>=3",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["feedback_service*"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "../../packages/common-schemas/src"]

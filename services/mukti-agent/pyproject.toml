@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mukti-agent"
+version = "0.0.0"
+description = "Post-execution trace analysis; advisory ExecutionFeedback only (Phase 6)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2,<3",
+    "common-schemas",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mukti_agent*"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "../../packages/common-schemas/src"]

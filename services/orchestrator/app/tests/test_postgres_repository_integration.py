@@ -34,7 +34,7 @@ from common_schemas import (
     ToolSideEffectClass,
     ValidationOutcome,
 )
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 
 from app.adapters.db import create_engine_from_settings, create_session_factory
 from app.adapters.models import Base
@@ -56,10 +56,14 @@ pytestmark = pytest.mark.skipif(
 
 
 def _clear_tables(engine) -> None:
+    table_names = set(inspect(engine).get_table_names())
     with engine.begin() as conn:
         conn.execute(text("DELETE FROM approvals"))
         conn.execute(text("DELETE FROM policy_evaluations"))
         conn.execute(text("DELETE FROM action_proposals"))
+        conn.execute(text("DELETE FROM execution_feedback"))
+        if "operator_feedback" in table_names:
+            conn.execute(text("DELETE FROM operator_feedback"))
         conn.execute(text("DELETE FROM tool_calls"))
         conn.execute(text("DELETE FROM step_results"))
         conn.execute(text("DELETE FROM execution_steps"))

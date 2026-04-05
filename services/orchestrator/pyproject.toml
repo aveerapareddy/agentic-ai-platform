@@ -14,6 +14,8 @@ dependencies = [
     "tool-runtime @ file:../tool-runtime",
     "knowledge-service @ file:../knowledge-service",
     "model-runtime @ file:../model-runtime",
+    "feedback-service @ file:../feedback-service",
+    "mukti-agent @ file:../mukti-agent",
     "sqlalchemy>=2,<3",
     "psycopg[binary]>=3",
 ]
@@ -34,4 +36,6 @@ pythonpath = [
     "../tool-runtime",
     "../knowledge-service",
     "../model-runtime",
+    "../feedback-service",
+    "../mukti-agent",
 ]

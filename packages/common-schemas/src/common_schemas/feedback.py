@@ -71,6 +71,12 @@ class ExecutionFeedback(BaseModel):
     failure_types: list[str] = Field(default_factory=list)
     patterns_detected: list[PatternDetection] = Field(default_factory=list)
     improvement_suggestions: list[ImprovementSuggestion] = Field(default_factory=list)
+    advisory_confidence: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Ordinal strength of rule-based or model-based advisory output; not validation authority.",
+    )
     created_at: datetime
     updated_at: datetime | None = Field(
         default=None,

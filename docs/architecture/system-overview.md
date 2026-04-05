@@ -204,6 +204,57 @@ This architecture document does **not** specify:
 
 Those belong in later infrastructure ADRs and runbooks when deployment targets are fixed.
 
+### 9. Model Runtime (AI Boundary)
+
+#### Purpose
+
+The model-runtime isolates all model inference behind a bounded service contract. It provides structured reasoning for specific steps without owning execution control, policy decisions, or tool invocation.
+
+#### Responsibilities
+
+- Execute model calls via a StructuredReasoningClient
+- Accept only structured inputs (no raw prompt strings at the service boundary)
+- Return only structured outputs defined in shared schemas
+- Support deterministic providers for local/testing and pluggable providers for production
+
+#### Must not own
+
+- Execution lifecycle or state transitions
+- Policy decisions or approvals
+- Tool execution or retrieval
+- Direct mutation of execution results beyond step-scoped payloads
+
+#### Interaction model
+
+- Called by orchestrator only for specific step types (e.g., analyze_incident, validate_incident)
+- Returns bounded reasoning outputs mapped into StepResult
+- Orchestrator decides whether to use model-runtime or deterministic fallback
+
+#### Determinism and fallback
+
+- If model-runtime is unavailable or fails, the orchestrator must fall back to deterministic StepExecutor behavior
+- Fallback is explicit and recorded in trace events
+- Model inference must not be required for execution correctness
+
+#### Traceability
+
+- Each invocation is recorded via model_reasoning events
+- Events include:
+  - path: model_runtime or deterministic_fallback
+  - task (e.g., analyze_incident)
+  - optional provider identifier
+  - error metadata when fallback occurs
+
+#### Boundary rule
+
+Model output is advisory within a step. It must not:
+
+- change execution state directly
+- trigger side effects
+- bypass validation or policy
+
+This enforces that the control plane remains deterministic and auditable while allowing bounded use of AI for reasoning.
+
 ---
 
 ### Summary for readers

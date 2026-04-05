@@ -236,6 +236,10 @@ Each phase lists **concrete artifacts**. “Stubbed” means interfaces or thin 
 
 **May remain stubbed:** Fine-tuned models, elaborate prompt registries, automatic re-planning without human/policy triggers where not yet specified.
 
+**Implementation note**
+
+AI is introduced only through a bounded model-runtime service. Model outputs are structured, step-scoped, and do not influence execution state transitions. The orchestrator selects between model-runtime and deterministic fallback paths, and all model usage is traceable. This preserves a deterministic control plane while enabling AI-assisted reasoning.
+
 ---
 
 ### Phase 6 — Feedback and Mukti

@@ -83,6 +83,9 @@ class Repository(Protocol):
     def get_tool_call(self, tool_call_id: UUID) -> ToolCall | None: ...
     def list_tool_calls_for_step(self, step_id: UUID) -> list[ToolCall]: ...
 
+    def list_policy_evaluations_for_execution(self, execution_id: UUID) -> list[PolicyEvaluation]: ...
+    def list_action_proposals_for_execution(self, execution_id: UUID) -> list[ActionProposal]: ...
+
 
 class InMemoryRepository:
     """Volatile store; structurally aligned with relational persistence."""
@@ -174,6 +177,18 @@ class InMemoryRepository:
         return sorted(
             (tc for tc in self._tool_calls.values() if tc.step_id == step_id),
             key=lambda tc: tc.created_at,
+        )
+
+    def list_policy_evaluations_for_execution(self, execution_id: UUID) -> list[PolicyEvaluation]:
+        return sorted(
+            (e for e in self._policy_evaluations.values() if e.execution_id == execution_id),
+            key=lambda e: e.created_at,
+        )
+
+    def list_action_proposals_for_execution(self, execution_id: UUID) -> list[ActionProposal]:
+        return sorted(
+            (p for p in self._action_proposals.values() if p.execution_id == execution_id),
+            key=lambda p: p.created_at,
         )
 
 
@@ -715,3 +730,23 @@ class PostgresRepository:
             )
             rows = session.scalars(stmt).all()
             return [_row_to_tool_call(r) for r in rows]
+
+    def list_policy_evaluations_for_execution(self, execution_id: UUID) -> list[PolicyEvaluation]:
+        with self._session_factory() as session:
+            stmt = (
+                select(PolicyEvaluationRow)
+                .where(PolicyEvaluationRow.execution_id == execution_id)
+                .order_by(PolicyEvaluationRow.created_at.asc())
+            )
+            rows = session.scalars(stmt).all()
+            return [_row_to_evaluation(r) for r in rows]
+
+    def list_action_proposals_for_execution(self, execution_id: UUID) -> list[ActionProposal]:
+        with self._session_factory() as session:
+            stmt = (
+                select(ActionProposalRow)
+                .where(ActionProposalRow.execution_id == execution_id)
+                .order_by(ActionProposalRow.created_at.asc())
+            )
+            rows = session.scalars(stmt).all()
+            return [_row_to_proposal(r) for r in rows]
