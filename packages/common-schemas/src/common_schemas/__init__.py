@@ -31,6 +31,12 @@ from .ids import (
     ToolCallId,
 )
 from .knowledge import EvidenceChunk, RetrievalRequest, RetrievalResponse
+from .reasoning import (
+    IncidentAnalysisModelRequest,
+    IncidentAnalysisReasoningOutput,
+    IncidentValidationModelRequest,
+    IncidentValidationReasoningOutput,
+)
 from .policy import (
     ActionProposal,
     ActionProposalStatus,
@@ -82,6 +88,10 @@ __all__ = [
     "FeedbackId",
     "FeedbackSource",
     "ImprovementSuggestion",
+    "IncidentAnalysisModelRequest",
+    "IncidentAnalysisReasoningOutput",
+    "IncidentValidationModelRequest",
+    "IncidentValidationReasoningOutput",
     "OperatorFeedback",
     "PatternDetection",
     "PlanId",

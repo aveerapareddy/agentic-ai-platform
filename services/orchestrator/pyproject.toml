@@ -13,6 +13,7 @@ dependencies = [
     "policy-engine @ file:../policy-engine",
     "tool-runtime @ file:../tool-runtime",
     "knowledge-service @ file:../knowledge-service",
+    "model-runtime @ file:../model-runtime",
     "sqlalchemy>=2,<3",
     "psycopg[binary]>=3",
 ]
@@ -32,4 +33,5 @@ pythonpath = [
     "../policy-engine",
     "../tool-runtime",
     "../knowledge-service",
+    "../model-runtime",
 ]

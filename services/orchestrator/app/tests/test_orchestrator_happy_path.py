@@ -53,6 +53,12 @@ def test_happy_path_incident_workflow() -> None:
     assert validations[0].get("validation_status") == "passed"
     assert any(r.get("event_type") == "knowledge_retrieved" for r in done.trace_timeline)
     assert len([r for r in done.trace_timeline if r.get("event_type") == "tool_call_completed"]) >= 2
+    model_paths = [
+        r.get("path")
+        for r in done.trace_timeline
+        if r.get("event_type") == "model_reasoning" and r.get("path") == "model_runtime"
+    ]
+    assert len(model_paths) >= 2
     assert any(r.get("event_type") == "action_proposed" for r in done.trace_timeline)
     assert any(r.get("event_type") == "policy_evaluated" for r in done.trace_timeline)
     assert any(r.get("event_type") == "governed_outcome" for r in done.trace_timeline)

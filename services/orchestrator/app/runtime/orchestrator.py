@@ -15,6 +15,10 @@ from common_schemas import (
     Execution,
     ExecutionPlan,
     ExecutionStatus,
+    IncidentAnalysisModelRequest,
+    IncidentAnalysisReasoningOutput,
+    IncidentValidationModelRequest,
+    IncidentValidationReasoningOutput,
     PolicyDecision,
     PolicyEvaluation,
     PolicyEvaluationId,
@@ -29,6 +33,7 @@ from common_schemas import (
     StepType,
     ToolCall,
     ToolInvokeRequest,
+    ValidationOutcome,
 )
 
 from app.adapters.repository import Repository
@@ -42,6 +47,7 @@ from app.runtime.state_machine import (
 )
 from app.runtime.step_executor import StepExecutor
 from knowledge_service.service import KnowledgeService
+from model_runtime.service import ModelRuntimeService
 from policy_engine.service import PolicyEvaluationService
 from tool_runtime.service import ToolRuntimeService
 
@@ -82,6 +88,7 @@ class ExecutionEngine:
         policy_service: PolicyEvaluationService | None = None,
         tool_runtime: ToolRuntimeService | None | object = _DEFAULT_CAPABILITY,
         knowledge_service: KnowledgeService | None | object = _DEFAULT_CAPABILITY,
+        model_runtime: ModelRuntimeService | None | object = _DEFAULT_CAPABILITY,
     ) -> None:
         self._repo = repository
         self._planner = planner or Planner()
@@ -98,6 +105,11 @@ class ExecutionEngine:
             self._knowledge = KnowledgeService()
         else:
             self._knowledge = knowledge_service  # type: ignore[assignment]
+        self._model_runtime: ModelRuntimeService | None
+        if model_runtime is _DEFAULT_CAPABILITY:
+            self._model_runtime = ModelRuntimeService()
+        else:
+            self._model_runtime = model_runtime  # type: ignore[assignment]
 
     def run_execution(self, execution_id: UUID) -> Execution:
         """Drive execution through planning, executing, validating, to COMPLETED or FAILED."""
@@ -327,6 +339,211 @@ class ExecutionEngine:
             and step.input.get("planner_step_name") == "gather_evidence"
         )
 
+    def _should_use_model_for_step(self, step: Step) -> bool:
+        if self._model_runtime is None:
+            return False
+        if step.input.get("workflow_type") != "incident_triage":
+            return False
+        name = step.input.get("planner_step_name")
+        return name in ("analyze_incident", "validate_incident")
+
+    def _prior_analyze_and_gather_outputs(self, execution_id: UUID) -> tuple[dict[str, Any], dict[str, Any]]:
+        analyze_out: dict[str, Any] = {}
+        gather_out: dict[str, Any] = {}
+        for s in self._repo.list_steps_for_execution(execution_id):
+            pname = s.input.get("planner_step_name")
+            res = self._repo.get_step_result(s.step_id)
+            out = res.output if res is not None and isinstance(res.output, dict) else {}
+            if pname == "analyze_incident":
+                analyze_out = dict(out)
+            elif pname == "gather_evidence":
+                gather_out = dict(out)
+        return analyze_out, gather_out
+
+    def _trace_model_reasoning(
+        self,
+        execution_id: UUID,
+        step: Step,
+        *,
+        path: str,
+        task: str,
+        now: datetime,
+        provider: str | None = None,
+        error_class: str | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        ex = self._repo.get_execution(execution_id)
+        if ex is None:
+            return
+        detail: dict[str, Any] = {
+            "step_id": str(step.step_id),
+            "planner_step_name": step.input.get("planner_step_name"),
+            "path": path,
+            "task": task,
+        }
+        if provider:
+            detail["provider"] = provider
+        if error_class:
+            detail["error_class"] = error_class
+        if error_message:
+            detail["error_message"] = error_message[:500]
+        ex = _append_timeline(ex, "model_reasoning", detail, now)
+        self._repo.update_execution(ex)
+
+    def _step_result_from_analyze_model(
+        self,
+        step: Step,
+        now: datetime,
+        out: IncidentAnalysisReasoningOutput,
+    ) -> StepResult:
+        rid: ResultId = uuid4()
+        return StepResult(
+            step_result_id=rid,
+            step_id=step.step_id,
+            output={
+                "incident_summary": out.incident_summary,
+                "possible_causes": list(out.possible_causes),
+            },
+            evidence=[
+                {
+                    "type": "model_reasoning",
+                    "provider": out.provider_label,
+                    "invocation_id": out.model_invocation_id,
+                    "task": "analyze_incident",
+                },
+            ],
+            errors=[],
+            latency_ms=1,
+            latency_started_at=now,
+            latency_ended_at=now,
+            confidence_score=0.86,
+            confidence_detail={
+                "source": "model_runtime",
+                "provider": out.provider_label,
+                "task": "analyze_incident",
+            },
+            completeness=StepCompleteness.FULL,
+            validation_outcome=None,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def _step_result_from_validate_model(
+        self,
+        step: Step,
+        now: datetime,
+        out: IncidentValidationReasoningOutput,
+    ) -> StepResult:
+        rid: ResultId = uuid4()
+        vo = ValidationOutcome(
+            status=out.validation_status,
+            details={
+                "likely_cause": out.likely_cause,
+                "model_invocation_id": out.model_invocation_id,
+                "provider": out.provider_label,
+                "rationale_short": out.rationale_short,
+            },
+        )
+        return StepResult(
+            step_result_id=rid,
+            step_id=step.step_id,
+            output={
+                "likely_cause": out.likely_cause,
+                "validation_status": out.validation_status,
+                "confidence_score": out.confidence_score,
+                "digest": out.digest,
+            },
+            evidence=[
+                {
+                    "type": "model_reasoning",
+                    "provider": out.provider_label,
+                    "invocation_id": out.model_invocation_id,
+                    "task": "validate_incident",
+                },
+            ],
+            errors=[],
+            latency_ms=1,
+            latency_started_at=now,
+            latency_ended_at=now,
+            confidence_score=out.confidence_score,
+            confidence_detail={
+                "source": "model_runtime",
+                "provider": out.provider_label,
+                "task": "validate_incident",
+            },
+            completeness=StepCompleteness.FULL,
+            validation_outcome=vo,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def _incident_model_reasoning_step(self, step: Step, now: datetime) -> StepResult:
+        """Bounded model path with deterministic StepExecutor fallback (Phase 5)."""
+        assert self._model_runtime is not None
+        name = step.input.get("planner_step_name")
+        if not isinstance(name, str):
+            return self._executor.execute_step(step)
+        ex_in = step.input.get("execution_input")
+        if not isinstance(ex_in, dict):
+            ex_in = {}
+        incident_id = str(ex_in.get("incident_id", ex_in.get("id", "unknown")))
+        keys = sorted(ex_in.keys())[:12]
+        excerpt = {k: ex_in[k] for k in keys}
+
+        try:
+            if name == "analyze_incident":
+                req = IncidentAnalysisModelRequest(
+                    execution_id=step.execution_id,
+                    step_id=step.step_id,
+                    incident_id=incident_id,
+                    execution_input_excerpt=excerpt,
+                )
+                out = self._model_runtime.analyze_incident(req)
+                self._trace_model_reasoning(
+                    step.execution_id,
+                    step,
+                    path="model_runtime",
+                    task="analyze_incident",
+                    now=now,
+                    provider=out.provider_label,
+                )
+                return self._step_result_from_analyze_model(step, now, out)
+            if name == "validate_incident":
+                analyze_out, gather_out = self._prior_analyze_and_gather_outputs(step.execution_id)
+                pc = analyze_out.get("possible_causes")
+                prior_causes = [str(x) for x in pc] if isinstance(pc, list) else []
+                req = IncidentValidationModelRequest(
+                    execution_id=step.execution_id,
+                    step_id=step.step_id,
+                    incident_id=incident_id,
+                    prior_possible_causes=prior_causes[:16],
+                    prior_incident_summary_excerpt=str(analyze_out.get("incident_summary", ""))[:2000],
+                    evidence_summary_excerpt=str(gather_out.get("evidence_summary", ""))[:2000],
+                )
+                vout = self._model_runtime.validate_incident(req)
+                self._trace_model_reasoning(
+                    step.execution_id,
+                    step,
+                    path="model_runtime",
+                    task="validate_incident",
+                    now=now,
+                    provider=vout.provider_label,
+                )
+                return self._step_result_from_validate_model(step, now, vout)
+        except Exception as exc:  # noqa: BLE001 — normalize to fallback + trace
+            self._trace_model_reasoning(
+                step.execution_id,
+                step,
+                path="deterministic_fallback",
+                task=name if name in ("analyze_incident", "validate_incident") else "unknown",
+                now=now,
+                error_class=type(exc).__name__,
+                error_message=str(exc),
+            )
+            return self._executor.execute_step(step)
+
+        return self._executor.execute_step(step)
+
     def _gather_evidence_via_services(self, step: Step, now: datetime) -> StepResult:
         """Coordinator path: knowledge-service + tool-runtime; persists ToolCalls (Phase 4)."""
         assert self._tool_runtime is not None and self._knowledge is not None
@@ -495,6 +712,8 @@ class ExecutionEngine:
 
         if self._should_use_tooling_for_step(running):
             result = self._gather_evidence_via_services(running, now)
+        elif self._should_use_model_for_step(running):
+            result = self._incident_model_reasoning_step(running, now)
         else:
             result = self._executor.execute_step(running)
         self._repo.save_step_result(result)

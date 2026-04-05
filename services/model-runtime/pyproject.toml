@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "model-runtime"
+version = "0.0.0"
+description = "Bounded structured model inference for Agentic AI Platform (Phase 5)"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2,<3",
+    "common-schemas",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["model_runtime*"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "../../packages/common-schemas/src"]
