@@ -14,6 +14,8 @@ The system is:
 - a multi-agent execution platform  
 - a control plane for workflows involving models, tools, and data  
 - a system with explicit execution semantics and traceability  
+- an **internal product surface** over the platform core: **api-gateway** and **operator-console** as **bounded access layers** (ingress, validation at the edge, operator UX)—not a parallel control plane  
+- governed such that **product interfaces do not redefine platform behavior**; lifecycle, validation, governance, and persistence remain owned by platform services and documented contracts  
 
 The system is not:
 
@@ -21,6 +23,9 @@ The system is not:
 - a prompt wrapper  
 - a collection of loosely connected scripts  
 - a framework-driven demo  
+- a **UI-led product** where workflow semantics, lifecycle, or governance rules live primarily in the frontend  
+- a **thin dashboard** over **hidden** backend logic that omits or replaces authoritative trace and policy records  
+- a **generic chat surface** presented as the platform’s execution primitive  
 
 ---
 
@@ -39,6 +44,11 @@ The system is not:
 ### 2.3 Deterministic Control Layer
 - Execution lifecycle, retries, and state transitions must be deterministic
 - AI components must not control system state directly
+
+### 2.4 Platform Control vs Product Surface
+- **Execution semantics**—plans, steps, state transitions, validation gates, and replay discipline—are **owned by the platform core**, not by the UI or gateway
+- The UI and gateway **may expose** workflows and operator actions, but **must not redefine** lifecycle, validation, or governance rules; they consume **published platform contracts** and APIs only
+- Product surfaces **remain consumers** of platform contracts (`packages/common-schemas`, gateway projections per [api-design.md](../architecture/api-design.md)); they **must not substitute** ad hoc client-only shapes for authoritative execution or policy truth
 
 ---
 
@@ -80,6 +90,12 @@ The system is not:
 - Replay must preserve execution structure and inputs
 - Debugging must not depend on external system availability
 
+### 4.4 Metrics and Evaluation
+- Execution metrics must be **derived from stored execution data and trace records** (see §4.1, §5.3)
+- Evaluation signals must be **inspectable** and **reproducible** from those artifacts (definitions, rule or formula versions, and inputs must be documented or code-defined—not opaque client-only scoring)
+- **No hidden scoring logic** outside the platform’s documented data path may stand in for truth where product or operations decisions depend on execution outcomes; canonical metrics belong in **server-side** computation grounded in persistence (e.g. evaluation-engine per [project-end-state.md](project-end-state.md)), not undocumented browser state
+- Reliability and health reporting must **distinguish**, at minimum: **execution failures**, **model fallbacks** (vs successful model-runtime paths, as recorded in trace), **policy denials** (and conditional gates), and **tool failures**—consistent with §4.2 classification
+
 ---
 
 ## 5. Data, Retrieval, and Traceability
@@ -97,6 +113,11 @@ The system is not:
 - Trace data must be sufficient to reconstruct decisions
 - Missing data must be explicitly marked, not hidden
 
+### 5.4 Separation of Operational Data and Product Projections
+- UI and gateway **API projections** may reshape, summarize, or redact platform data for usability, performance, and security
+- Product projections **must not become the source of truth** for execution outcomes, policy decisions, or audit narratives
+- **Execution state**, **policy decisions**, **tool calls**, **approvals**, **validation outcomes**, and **feedback** remain **authoritative** in platform stores and service-owned records; operator-critical views **must reconcile** to persisted data
+
 ---
 
 ## 6. Evaluation and Improvement
@@ -113,6 +134,11 @@ The system is not:
 ### 6.3 Controlled Evolution
 - System behavior must not change automatically at runtime
 - Improvements must be introduced through controlled updates
+
+### 6.4 Advisory Insights vs Control Decisions
+- **Evaluation-engine** outputs and **Mukti** insights (including cross-execution analysis) **may inform** operators and future releases
+- They **must not directly change** execution state, policy outcomes, or workflow behavior at runtime
+- Insights are **recommendations**, not **control-plane authority** (extends §6.2–6.3)
 
 ---
 
@@ -168,6 +194,26 @@ The system is not:
 - No dead code
 - No ambiguous abstractions
 
+### 8.8 Thin Product Surface
+- **API gateway** and **operator-console** must remain **thin** relative to the platform core
+- They **orchestrate access** (authentication hooks, routing, edge validation, presentation); they **must not own** workflow semantics, planning logic, or persistence of the execution graph
+
+### 8.9 UI Is Not the Source of Truth
+- Client and session UI state must **not** become authoritative over **execution state**
+- Approvals, traces, metrics presented to operators, and replay flows **must** reflect **platform APIs** and **persisted records**; optimistic UI must **reconcile** with server truth
+
+### 8.10 Metrics Must Be Grounded
+- Metrics and evaluation outputs **must** be computed from **execution artifacts** (stored rows, timeline events, defined aggregates)—**not invented client-side** as the canonical operational value
+- Aggregations **must remain attributable** to **executions**, **steps**, **tools**, **policies**, or **feedback** records (and documented dimensions such as workflow or tenant)
+
+### 8.11 Replay Must Preserve Discipline
+- Replay features **must reuse** platform execution contracts and paths defined in architecture and [api-design.md](../architecture/api-design.md)
+- Replay UIs or APIs **must not bypass** validation, policy, or trace recording requirements (§4.3, §8.5)
+
+### 8.12 Multi-Workflow Integrity
+- New workflows **must reuse** the **common execution model** (executions, plans, steps, trace) per the runtime model
+- Workflow-specific logic (planners, tools, validators) may vary, but **must not fork** the platform into **incompatible** parallel execution systems
+
 ---
 
 ## 9. Decision Rule
@@ -185,6 +231,8 @@ If it reduces clarity, control, or reliability, it must be rejected or redesigne
 - Build foundation first (execution, state, contracts)
 - Add capabilities incrementally (policy, tools, AI)
 - Preserve architectural integrity across phases
+- **Product surface** (gateway, operator-console, metrics, replay UX) expands **after** the platform core is **stable** for the active phase; it is **layered on** platform contracts and persisted trace data, not ahead of them
+- **Second and later workflows** must **demonstrate reuse** of the same execution model and services; they must **not** rely on **copy-paste** architectures that duplicate control-plane semantics outside documented boundaries
 
 ---
 
@@ -286,3 +334,24 @@ Must include:
 - reason for deviation
 - impact analysis
 - why it improves the system
+
+---
+
+### 11.8 Product Surface Enforcement
+
+- UI and gateway implementations **must not embed** logic that belongs only in **orchestrator**, **policy-engine**, **tool-runtime**, **knowledge-service**, **feedback-service**, **mukti-agent**, or **evaluation-engine**
+- If frontend or gateway convenience **conflicts** with platform semantics, **platform semantics win**; resolve by changing the product surface or extending **documented** contracts—not by concealing divergent behavior
+
+---
+
+### 11.9 Metrics and Insights Enforcement
+
+- **Evaluation-engine** and **Mukti** outputs **must remain derived**, **inspectable**, and **non-authoritative** for live execution control
+- **Hidden heuristics** that **alter execution outcomes** (state transitions, policy bypass, validation skipping, unlogged side effects) are **prohibited**
+
+---
+
+### 11.10 Workflow Expansion Enforcement
+
+- New workflows **must identify** which existing platform capabilities (policy, tools, knowledge, model-runtime, validation, feedback, etc.) they **reuse**
+- If a workflow **requires a new execution model** incompatible with the runtime model, the deviation **must be explicitly justified** and treated as an **architecture change**—not an undocumented fork

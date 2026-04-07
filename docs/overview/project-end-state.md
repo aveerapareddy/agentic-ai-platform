@@ -1,8 +1,8 @@
 # Project End State
 
-One-line purpose: Define the target production-grade internal platform this repository is building toward, what “complete” means, how it differs from thin AI wrappers, and what each implementation phase must deliver.
+One-line purpose: Define the target production-grade **internal platform and product surface** this repository is building toward, what “complete” means, how it differs from thin AI wrappers, and what each implementation phase must deliver.
 
-This document complements [project-constitution.md](project-constitution.md), [runtime-model.md](../architecture/runtime-model.md), [system-overview.md](../architecture/system-overview.md), and [api-design.md](../architecture/api-design.md). It does not replace them.
+This document complements [project-constitution.md](project-constitution.md), [runtime-model.md](../architecture/runtime-model.md), [system-overview.md](../architecture/system-overview.md), and [api-design.md](../architecture/api-design.md). It does not replace them. **Scope:** platform capabilities through **Phase 7** plus a **Phase 8 — Product Layer** (gateway, operator console, evaluation, Mukti v2, replay, and two first-class workflows) so completion criteria include operable ingress and UI, not only library or CLI demos.
 
 ---
 
@@ -69,11 +69,45 @@ The system is **not**:
 - **Policy and tool call visibility**: First-class records in storage and API projections where applicable.
 - **Ability to reconstruct any execution**: Historical review does not require external systems to be online for the stored narrative.
 
+### 2.7 Access and Product Surface
+
+- **API gateway as unified ingress**: Single external HTTP entry for platform operations aligned with [api-design.md](../architecture/api-design.md): **authentication hooks** (identity integration as deployment attaches), **request validation** and error shaping at the boundary, **routing** to **orchestrator** (and other backing paths only where API design permits, e.g. feedback)—not ad hoc client access to internal services.
+- **Operator-console as first-class product surface**: Browser UI used by operators for **execution exploration** (list, filter, detail), **trace inspection** (steps, tool calls, policy, approvals, timeline projections), **approval handling** for gated paths, and **feedback submission**—calling **api-gateway** only (per [system-overview.md](../architecture/system-overview.md) trust boundaries).
+- **Separation of platform services and product-facing interfaces**: **Orchestrator**, **policy-engine**, **tool-runtime**, **knowledge-service**, **feedback-service**, **mukti-agent**, and **evaluation-engine** (§4) implement domain behavior and persistence; **api-gateway** and **operator-console** expose controlled, versioned access and UX. Critical logic and side effects do not move into the UI or gateway beyond ingress, validation, and forwarding.
+
+### 2.8 Evaluation and Metrics
+
+- **Execution-level metrics** (derived from stored execution and trace data, not from undocumented side channels):
+  - **Model fallback rate**: share of step-level model invocations that recorded deterministic fallback vs model-runtime path (per trace events / step semantics in storage).
+  - **Validation success rate**: outcomes of validation phase / validation-bearing steps as persisted.
+  - **Policy deny / conditional rate**: counts or rates of **deny** vs **conditional** vs **allow** outcomes where **policy_evaluations** exist.
+  - **Tool success rate**: tool call completion vs structured failure as recorded in **tool_calls** (and step linkage).
+  - **Latency per step**: end-to-end step duration as recorded or computable from step timestamps in the execution graph.
+- **Aggregation dimensions** (for reporting and regression detection): **workflow** (`workflow_type`), **step type** / planner step name, **tool** name, **policy rule** / evaluated rule references where stored.
+- **Evaluation outputs**: **`evaluation_score`** (workflow- or bundle-defined scalar or structured score from defined formulas), **anomaly signals** (statistical or rule-based flags over aggregates), **degradation indicators** (threshold breaches on the metrics above).
+- **Trace-grounded evaluation only**: Metrics and scores are **computed from persisted execution, step, result, tool, policy, and timeline data**. There are **no hidden model or platform metrics** that matter for product evaluation but exist only outside the trace and stored artifacts (constitution §4.1, §5.3).
+
+### 2.9 Replay and Debugging
+
+- **Replay capability**:
+  - **Exact replay**: same stored inputs and execution structure drive a new run (or re-materialized narrative) in a controlled target environment; stochastic model outputs may differ where documented in the runtime model, but **platform-stored** structure and inputs are authoritative ([api-design.md](../architecture/api-design.md) replay category).
+  - **Investigative replay**: replay with **modified inputs** or labels for hypothesis testing; mode and deltas must be **persisted and inspectable** so reviews do not confuse investigative runs with production-faithful copies.
+- **Requirement**: Replay **uses stored execution structure** (plans, steps, context snapshots as defined for replay); **differences** between source and child or investigative runs must be **inspectable** (metadata, linked `replay_execution_id`, mode flags).
+- **Debugging**: Operators and engineers can compare runs **step-by-step** and at **trace** granularity (timeline, tool calls, policy evaluations, validation) without depending on ephemeral application logs as the sole source of truth.
+
+### 2.10 Cross-Execution Insights (Mukti v2)
+
+- **Evolution**: **Mukti** extends beyond **per-execution** analysis (Phase 6) to **cross-execution** analysis over batches of stored traces and feedback: **pattern detection** across runs, **failure clustering**, and **instability identification** (e.g. recurring step/tool/policy failure modes).
+- **Outputs**: **Top failure types**, **recurring patterns** (structured, queryable), **ranked improvement suggestions** for humans and release processes—still **advisory**.
+- **Constraints** (unchanged in spirit from constitution §6.2–6.3): **Post-execution only**; **no control-plane mutation** (no live execution transitions, no policy/tool/plan changes from Mukti output without a governed release); **advisory output only** written to durable feedback or insight records, not silent runtime behavior changes.
+
 ---
 
 ## 3. Core Workflows
 
-The following workflows must be **implemented and demonstrated** end to end.
+**Minimum product requirement:** At least **two** workflows must be **fully implemented** (end-to-end verticals with workflow-specific planners, tools and/or retrieval as required, validation, and trace—not scaffold-only generic plans): **incident triage** and **cost attribution and analysis**. The system must demonstrate **multi-workflow reuse** of the **same** execution model (executions, plans, steps, trace, policy, and tools as applicable). Those two workflows must **exercise different platform capabilities** (e.g. distinct tool sets, retrieval usage, validation semantics, or governance paths)—not the same scenario duplicated under another name.
+
+The following workflows must be **implemented and demonstrated** end to end (the two named above as **first-class** verticals; others as specified in §5).
 
 | Workflow | Role |
 |----------|------|
@@ -95,14 +129,15 @@ For **each** workflow:
 
 | Component | Purpose | Expected depth |
 |-----------|---------|----------------|
-| **api-gateway** | HTTP ingress: authn/authz hooks, routing, request validation, rate limits, `/v1` mapping per [api-design.md](../architecture/api-design.md). | **Medium**: credible single-environment ingress; not a full global edge. |
+| **api-gateway** | **Required for product completeness**: unified HTTP ingress—authn/authz hooks, routing, request validation, rate limits, `/v1` mapping per [api-design.md](../architecture/api-design.md); forwards to orchestrator (and other allowed backing paths). Does not own execution or policy logic. | **Medium**: **real** routing and validation behavior in a single-environment deployment—not a placeholder directory; not a full global edge or full enterprise IAM product. |
 | **orchestrator** | Execution lifecycle, plan/step scheduling, calls to policy, tool-runtime, knowledge; persistence of execution graph; validation orchestration. | **Deep**: platform core. |
 | **policy-engine** | Allow/deny/conditional evaluation, reasons, rule references; no tool execution. | **Deep**: real evaluations and stored records. |
 | **tool-runtime** | Registered tools only; contracts, timeouts, structured errors; durable tool calls. | **Medium**: **small** set of tools, **full** depth per tool (audit, idempotency, side-effect class). |
 | **knowledge-service** | Scoped retrieval; citable chunks for step evidence. | **Medium**: representative corpora and APIs. |
 | **feedback-service** | Ingest and expose feedback tied to executions for Mukti and reporting. | **Minimal but real**: durable rows and stable contracts. |
-| **mukti-agent** | Post-execution analysis; structured execution feedback. | **Medium**: reliable batch jobs; strict non-control-plane boundary. |
-| **operator-console** | UI over platform APIs: executions, traces, approvals, feedback. | **Minimal but real**: sufficient for demos and operator tasks without a productized UX program. |
+| **mukti-agent** | Post-execution analysis; structured execution feedback; **Mukti v2** cross-execution insights (§2.10) within same service boundary or logical module. | **Medium**: reliable batch jobs; strict non-control-plane boundary. |
+| **evaluation-engine** | Computes execution metrics and aggregates (§2.8) from stored trace data; exposes evaluation results for insights, gateway metrics endpoints, and operator-console views. | **Medium**: derived metrics and query APIs (or gateway-proxied reads); **no** separate data warehouse required for the scoped end-state. |
+| **operator-console** | **Required minimal but real UI**: first-party product surface over **api-gateway**—**execution listing** (with filter/search as API supports), **execution detail**, **trace viewing** (steps, tools, policy, approvals, timeline), **approvals** actions, feedback submission, and surfaces for **evaluation** / **Mukti v2** insights as data is exposed by APIs. | **Minimal but real**: functional operator tasks without a productized UX program or full design system. |
 
 ---
 
@@ -113,13 +148,19 @@ The system is considered **complete** for this program when:
 - Execution flows run **end-to-end** through **orchestrator**, **policy-engine**, and **tool-runtime** (knowledge-service where the workflow requires retrieval).
 - **Execution state** is **persisted** and **replayable** per the runtime model; trace narrative is not reconstructed only from application logs.
 - **Validation is enforced** before any **completed** success terminal state; outcomes are stored and inspectable.
-- **At least two major workflows** from §3 are **fully demonstrated** with **realistic inputs and outputs** (structured step results, not placeholder-only content). *Assumption:* one workflow may be incident- or cost-oriented; the second must include a path that **explicitly** exercises policy/approval (may overlap with “policy-aware” as a cross-cutting demonstration if both workflows share components but show distinct scenarios).
+- **At least two major workflows** from §3 are **fully demonstrated** with **realistic inputs and outputs** (structured step results, not placeholder-only content). **Incident triage** and **cost attribution and analysis** are both **required** as fully implemented verticals (§3). At least one path **explicitly** exercises policy/approval (deny, conditional, or approval-gated success)—within those workflows or as a clearly linked scenario. *Assumption:* “policy-aware execution” and “feedback-driven improvement loop” remain cross-cutting expectations as in §3’s per-workflow criteria.
 - **Traces** are **inspectable** and **meaningful** via APIs or operator-console paths aligned with api-design trace/execution categories.
 - **Policy and approval paths** are **exercised** (including at least one deny or approval-gated success path).
-- **Mukti** produces **structured feedback** from stored traces (and feedback-service where applicable) without altering live execution behavior.
+- **Mukti** produces **structured feedback** from stored traces (and feedback-service where applicable) without altering live execution behavior; **Mukti v2** cross-execution insights (§2.10) are **produced and queryable** where Phase 8 applies.
 - **No critical logic** depends on **hidden prompt behavior**; prompts operate inside bounded steps; policy and state live in data and services.
 - **Service boundaries remain intact**: orchestrator does not implement policy rules, tool bodies, or retrieval indexes; constitution §8.2 holds in code review.
 - The result is **credible as an internal platform** (operators and engineers can extend it) **not** a one-off demo application.
+- The system exposes an **API surface via api-gateway** for **executions**, **traces**, **approvals**, **replay**, and **metrics/evaluation** results (per §2.7–2.8 and [api-design.md](../architecture/api-design.md); metrics routes may be added as documented extensions to the `/v1` surface).
+- **Operator-console** enables **viewing executions**, **inspecting traces**, **handling approvals**, and accessing **evaluation and Mukti v2** views as APIs provide data.
+- **At least one workflow** is **operable end-to-end through the UI or gateway** (create/observe complete path), **not** only via in-process CLI or test harness.
+- **Evaluation metrics** are **computed and queryable** (§2.8)—not merely implied by raw tables without aggregation or API.
+- **Replay capability** exists (**API or CLI**): at least **one** **demonstrated** replay (exact or investigative) with inspectable linkage to source execution data.
+- **Two workflows** (**incident triage** and **cost attribution and analysis**) are **implemented and demonstrated** as distinct verticals per §3.
 
 ---
 
@@ -270,6 +311,45 @@ AI is introduced only through a bounded model-runtime service. Model outputs are
 
 ---
 
+### Phase 8 — Product Layer and Operational Surface
+
+**Output:**
+
+- **API Gateway**
+  - REST endpoints for **executions**, **trace**, **approvals**, **replay**, and **metrics/evaluation** projections (aligned with [api-design.md](../architecture/api-design.md); add metrics/evaluation read paths as documented).
+  - **Request validation** and **routing** to orchestrator and other allowed backends; authentication hooks as deployment attaches.
+
+- **Operator Console (UI)**
+  - **Execution explorer**: list, filter, search (within API capabilities).
+  - **Execution detail**: timeline, steps, evidence, model paths (as exposed in trace), tools, policy.
+  - **Approval interface** for gated executions.
+  - **Mukti insights** view: per-execution and **cross-execution (v2)** insights as exposed by APIs.
+
+- **Evaluation Engine**
+  - Metrics **computed from execution data** (§2.8).
+  - **Aggregation** by workflow, step type, tool, policy rule (as persisted).
+  - **Anomaly detection signals** and degradation indicators per defined rules or statistical thresholds.
+
+- **Mukti v2**
+  - **Cross-execution insights** (§2.10): failure clustering, patterns, ranked improvement suggestions.
+  - **Advisory** records only; **no** live execution or control-plane mutation.
+
+- **Replay Capability**
+  - **Exact** and **investigative** replay flows exposed per API (or supported CLI with same semantics).
+  - **Difference inspection** between source and replay runs (metadata and trace-level comparison).
+
+- **Second Workflow (cost vertical)**
+  - **Cost attribution and analysis** implemented with **workflow-specific** tools and/or retrieval, **validation**, and a **governance path** (policy/approval where applicable)—not a generic two-step placeholder.
+
+**May remain stubbed:**
+
+- Full-scale UI polish and accessibility programs.
+- Enterprise-grade auth systems beyond documented hooks and environment-scoped integration.
+- Distributed metrics pipelines at fleet scale.
+- Large-scale data warehouse or OLAP platform for analytics.
+
+---
+
 ## 9. Evolution Path
 
 After the scoped end-state:
@@ -278,8 +358,11 @@ After the scoped end-state:
 - **Richer tool integrations** under the same registration and audit pattern.
 - **Stronger retrieval** (corpus size, ranking, evaluation).
 - **More workflows** reusing the same execution and trace model.
-- **Stronger evaluation and benchmarking** of step outputs and validators.
+- **Stronger evaluation and benchmarking** of step outputs, validators, and §2.8 platform metrics—including richer frameworks, held-out sets, and regression gates.
 - **Operational hardening**: HA, scaling, SLOs, on-call playbooks—outside the current completion definition but enabled by the same boundaries.
+- **UI expansion** for operators and analysts (dashboards, saved views, collaboration)—without collapsing service boundaries.
+- **Deeper cross-workflow insights** (Mukti and evaluation-engine) as trace volume grows.
+- **Scaling gateway and UI** for multi-tenant environments (quotas, isolation hardening, regional ingress)—beyond Phase 8 single-environment depth.
 
 Extensions must not collapse orchestrator, policy, tools, or Mukti into a single implicit agent loop.
 
@@ -287,6 +370,6 @@ Extensions must not collapse orchestrator, policy, tools, or Mukti into a single
 
 ## Assumptions left open (intentional)
 
-- **Which two workflows** count first for §5 is a sequencing choice; incident triage and cost attribution are the default pair, with policy-aware behavior demonstrated inside at least one of them or as an additional scripted scenario.
-- **Gateway vs in-process orchestrator** for early phases: Phase 1 may be library/service without HTTP; Phase 7 assumes a **documented** demo path that may still use a thin gateway or CLI if full gateway is not yet deep.
+- **Minimum workflow pair for §5:** **Incident triage** and **cost attribution and analysis** are **required** full verticals; additional workflows in §3 remain as specified. Policy-aware behavior is demonstrated inside at least one of them or as a clearly linked scenario.
+- **Gateway vs in-process orchestrator:** Phases **0–7** may progress with library or thin ingress as today; **Phase 8** requires a **real** **api-gateway** and **operator-console** for completion per §5. Early phases may still use CLI/tests where Phase 8 is not in scope.
 - **Replay “exact” fidelity** to external systems may require recorded stubs; replay guarantees apply to **platform-stored** structure and inputs per runtime model.
