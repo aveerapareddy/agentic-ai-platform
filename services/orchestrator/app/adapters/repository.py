@@ -86,6 +86,17 @@ class Repository(Protocol):
     def list_policy_evaluations_for_execution(self, execution_id: UUID) -> list[PolicyEvaluation]: ...
     def list_action_proposals_for_execution(self, execution_id: UUID) -> list[ActionProposal]: ...
 
+    def list_executions(
+        self,
+        *,
+        tenant_id: str | None = None,
+        workflow_type: str | None = None,
+        status: ExecutionStatus | str | None = None,
+        limit: int = 50,
+    ) -> list[Execution]: ...
+
+    def list_approvals_for_execution(self, execution_id: UUID) -> list[Approval]: ...
+
 
 class InMemoryRepository:
     """Volatile store; structurally aligned with relational persistence."""
@@ -189,6 +200,36 @@ class InMemoryRepository:
         return sorted(
             (p for p in self._action_proposals.values() if p.execution_id == execution_id),
             key=lambda p: p.created_at,
+        )
+
+    def list_executions(
+        self,
+        *,
+        tenant_id: str | None = None,
+        workflow_type: str | None = None,
+        status: ExecutionStatus | str | None = None,
+        limit: int = 50,
+    ) -> list[Execution]:
+        rows = list(self._executions.values())
+        if tenant_id is not None:
+            rows = [
+                e
+                for e in rows
+                if (ctx := self._contexts.get(e.execution_context_id)) is not None
+                and ctx.tenant_id == tenant_id
+            ]
+        if workflow_type is not None:
+            rows = [e for e in rows if e.workflow_type == workflow_type]
+        if status is not None:
+            st = status.value if isinstance(status, ExecutionStatus) else status
+            rows = [e for e in rows if e.status.value == st]
+        rows.sort(key=lambda e: e.created_at, reverse=True)
+        return rows[: max(1, min(limit, 500))]
+
+    def list_approvals_for_execution(self, execution_id: UUID) -> list[Approval]:
+        return sorted(
+            (a for a in self._approvals.values() if a.execution_id == execution_id),
+            key=lambda a: a.decided_at,
         )
 
 
@@ -750,3 +791,38 @@ class PostgresRepository:
             )
             rows = session.scalars(stmt).all()
             return [_row_to_proposal(r) for r in rows]
+
+    def list_executions(
+        self,
+        *,
+        tenant_id: str | None = None,
+        workflow_type: str | None = None,
+        status: ExecutionStatus | str | None = None,
+        limit: int = 50,
+    ) -> list[Execution]:
+        lim = max(1, min(limit, 500))
+        with self._session_factory() as session:
+            stmt = select(ExecutionRow).join(
+                ExecutionContextRow,
+                ExecutionRow.execution_context_id == ExecutionContextRow.context_id,
+            )
+            if tenant_id is not None:
+                stmt = stmt.where(ExecutionContextRow.tenant_id == tenant_id)
+            if workflow_type is not None:
+                stmt = stmt.where(ExecutionRow.workflow_type == workflow_type)
+            if status is not None:
+                st = status.value if isinstance(status, ExecutionStatus) else status
+                stmt = stmt.where(ExecutionRow.status == st)
+            stmt = stmt.order_by(ExecutionRow.created_at.desc()).limit(lim)
+            rows = session.scalars(stmt).all()
+            return [_row_to_execution(r) for r in rows]
+
+    def list_approvals_for_execution(self, execution_id: UUID) -> list[Approval]:
+        with self._session_factory() as session:
+            stmt = (
+                select(ApprovalRow)
+                .where(ApprovalRow.execution_id == execution_id)
+                .order_by(ApprovalRow.decided_at.asc())
+            )
+            rows = session.scalars(stmt).all()
+            return [_row_to_approval(r) for r in rows]

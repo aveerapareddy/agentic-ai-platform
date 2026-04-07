@@ -42,6 +42,8 @@ class ExecutionService:
         principal_id: str | None = None,
         execution_mode: ExecutionMode = ExecutionMode.BACKGROUND,
         permissions_scope: dict[str, Any] | None = None,
+        parent_execution_id: ExecutionId | None = None,
+        feature_flags: dict[str, Any] | None = None,
         now: datetime | None = None,
     ) -> Execution:
         """Persist a new execution in CREATED with a fresh execution context."""
@@ -57,7 +59,7 @@ class ExecutionService:
             environment=environment,
             permissions_scope=permissions_scope or {},
             policy_scope=policy_scope,
-            feature_flags=None,
+            feature_flags=feature_flags,
             created_at=ts,
             updated_at=ts,
         )
@@ -69,6 +71,7 @@ class ExecutionService:
             status=ExecutionStatus.CREATED,
             execution_mode=execution_mode,
             execution_context_id=context_id,
+            parent_execution_id=parent_execution_id,
             input=dict(input_payload),
             created_at=ts,
             updated_at=ts,
@@ -78,6 +81,21 @@ class ExecutionService:
 
     def get_execution(self, execution_id: UUID) -> Execution | None:
         return self._repo.get_execution(execution_id)
+
+    def list_executions(
+        self,
+        *,
+        tenant_id: str | None = None,
+        workflow_type: str | None = None,
+        status: ExecutionStatus | str | None = None,
+        limit: int = 50,
+    ) -> list[Execution]:
+        return self._repo.list_executions(
+            tenant_id=tenant_id,
+            workflow_type=workflow_type,
+            status=status,
+            limit=limit,
+        )
 
     def start_execution(self, execution_id: UUID) -> Execution:
         """Run the orchestration loop until a terminal execution status."""

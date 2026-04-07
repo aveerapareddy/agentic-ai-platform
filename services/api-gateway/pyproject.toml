@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "api-gateway-service"
+version = "0.0.0"
+description = "Thin HTTP ingress for Agentic AI Platform (Phase 8)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "pydantic>=2,<3",
+    "pydantic-settings>=2,<3",
+    # Only orchestrator as a path dep. Do not repeat `common-schemas` or `feedback-service` here:
+    # pip treats `package @ file:...` differently from the same package installed via another
+    # `-e` on the CLI and raises ResolutionImpossible. Those packages come in with orchestrator.
+    "orchestrator-service @ file:../orchestrator",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["gateway*"]
+
+[project.optional-dependencies]
+dev = ["httpx>=0.27", "pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["gateway/tests"]
+pythonpath = [
+    ".",
+    "../orchestrator",
+    "../../packages/common-schemas/src",
+    "../policy-engine",
+    "../tool-runtime",
+    "../knowledge-service",
+    "../model-runtime",
+    "../feedback-service",
+    "../mukti-agent",
+]
