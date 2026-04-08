@@ -1,3 +1,1 @@
-# operator-console tests
-
-Frontend tests for the operator console. Not yet populated.
+Unit tests live next to source under `src/**/*.spec.ts` (Karma + Jasmine). Run `npm test` from `services/operator-console`.

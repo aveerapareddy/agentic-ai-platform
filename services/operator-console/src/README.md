@@ -1,3 +1,1 @@
-# operator-console source
-
-Internal operator UI for traces, executions, and platform health. Implementation pending.
+Angular source for the operator console. See [../README.md](../README.md).
