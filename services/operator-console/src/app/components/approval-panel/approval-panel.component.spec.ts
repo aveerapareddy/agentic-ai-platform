@@ -43,14 +43,14 @@ describe('ApprovalPanelComponent', () => {
     fixture.componentInstance.execution = awaiting;
     fixture.detectChanges();
     const el: HTMLElement = fixture.nativeElement;
-    expect(el.textContent).toContain('Approval');
-    expect(el.textContent).toContain('awaiting_approval');
+    expect(el.textContent).toContain('Awaiting approval');
+    expect(el.textContent).toContain('POST');
   });
 
   it('does not render when not awaiting approval', () => {
     fixture.componentInstance.execution = { ...awaiting, status: 'completed' };
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.panel.approval')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.approval-panel')).toBeNull();
   });
 
   it('calls API on approve and emits decided', (done) => {

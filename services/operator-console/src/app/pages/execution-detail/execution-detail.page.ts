@@ -5,42 +5,51 @@ import { catchError } from 'rxjs/operators';
 import { ExecutionApiService } from '../../core/api/execution-api.service';
 import type { ExecutionDetail, TraceView } from '../../core/models/execution.models';
 import { ExecutionSummaryComponent } from '../../components/execution-summary/execution-summary.component';
+import { ExecutionStepsComponent } from '../../components/execution-steps/execution-steps.component';
 import { TraceTimelineComponent } from '../../components/trace-timeline/trace-timeline.component';
 import { ApprovalPanelComponent } from '../../components/approval-panel/approval-panel.component';
+import { shortExecutionId } from '../../core/ui/format-util';
 
 @Component({
   selector: 'app-execution-detail-page',
   standalone: true,
-  imports: [RouterLink, ExecutionSummaryComponent, TraceTimelineComponent, ApprovalPanelComponent],
+  imports: [
+    RouterLink,
+    ExecutionSummaryComponent,
+    ExecutionStepsComponent,
+    ApprovalPanelComponent,
+    TraceTimelineComponent,
+  ],
   template: `
-    <p class="back">
+    <p class="back-link">
       <a routerLink="/executions">← Executions</a>
     </p>
     @if (loadError) {
-      <p class="err-text">{{ loadError }}</p>
+      <div class="oc-error" role="alert">{{ loadError }}</div>
     }
     @if (loading) {
-      <p class="muted">Loading…</p>
-    } @else {
-      <app-execution-summary [execution]="execution" />
-      <app-approval-panel [execution]="execution" (decided)="reload()" />
-      <app-trace-timeline [trace]="trace" />
+      <p class="oc-loading">Loading execution…</p>
+    } @else if (execution) {
+      <h1 class="oc-page-title mono">{{ shortId(execution.execution_id) }}</h1>
+      <p class="oc-page-lead oc-meta mono" style="margin-top: calc(-1 * var(--space-2))">{{ execution.execution_id }}</p>
+
+      <div class="oc-stack">
+        <app-execution-summary [execution]="execution" />
+        <app-execution-steps [trace]="trace" />
+        <app-approval-panel [execution]="execution" (decided)="reload()" />
+        <app-trace-timeline [trace]="trace" />
+      </div>
     }
   `,
-  styles: `
-    .back {
-      margin: 0 0 1rem;
-    }
-    .muted {
-      color: var(--muted);
-    }
-  `,
+  styles: ``,
 })
 export class ExecutionDetailPage implements OnInit {
   execution: ExecutionDetail | null = null;
   trace: TraceView | null = null;
   loading = true;
   loadError: string | null = null;
+
+  shortId = shortExecutionId;
 
   private executionId = '';
 
@@ -67,9 +76,7 @@ export class ExecutionDetailPage implements OnInit {
     this.loadError = null;
     forkJoin({
       ex: this.api.getExecution(this.executionId),
-      tr: this.api.getTrace(this.executionId).pipe(
-        catchError(() => of(null)),
-      ),
+      tr: this.api.getTrace(this.executionId).pipe(catchError(() => of(null))),
     }).subscribe({
       next: ({ ex, tr }) => {
         this.execution = ex;

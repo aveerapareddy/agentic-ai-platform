@@ -1,34 +1,41 @@
-import { SlicePipe } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import type { ExecutionListItem } from '../../core/models/execution.models';
+import { executionStatusModifier } from '../../core/ui/status-util';
+import { formatIsoShort, shortExecutionId } from '../../core/ui/format-util';
 
 @Component({
   selector: 'app-execution-list',
   standalone: true,
-  imports: [SlicePipe],
   template: `
     @if (items.length === 0) {
-      <p class="muted">No executions match the current filters.</p>
+      <div class="oc-panel">
+        <p class="oc-meta oc-empty">No executions match the current filters.</p>
+      </div>
     } @else {
-      <div class="table-wrap">
-        <table class="data">
+      <div class="oc-table-wrap">
+        <table class="oc-table">
           <thead>
             <tr>
-              <th>Execution ID</th>
-              <th>Workflow</th>
-              <th>Status</th>
-              <th>Created</th>
+              <th class="col-id" scope="col">Execution</th>
+              <th class="col-wf" scope="col">Workflow</th>
+              <th class="col-st" scope="col">Status</th>
+              <th class="col-ts" scope="col">Created</th>
             </tr>
           </thead>
           <tbody>
             @for (row of items; track row.execution_id) {
-              <tr class="clickable" (click)="select.emit(row.execution_id)" (keyup.enter)="select.emit(row.execution_id)" tabindex="0" role="button">
-                <td class="mono">{{ row.execution_id }}</td>
-                <td>{{ row.workflow_type }}</td>
-                <td>
-                  <span class="badge" [class]="row.status">{{ row.status }}</span>
+              <tr
+                tabindex="0"
+                (click)="select.emit(row.execution_id)"
+                (keyup.enter)="select.emit(row.execution_id)"
+                (keyup.space)="$event.preventDefault(); select.emit(row.execution_id)"
+              >
+                <td class="col-id mono" [title]="row.execution_id">{{ shortId(row.execution_id) }}</td>
+                <td class="col-wf oc-data">{{ row.workflow_type }}</td>
+                <td class="col-st">
+                  <span class="status-badge {{ statusClass(row.status) }}">{{ row.status }}</span>
                 </td>
-                <td class="muted">{{ row.created_at | slice: 0:19 }}</td>
+                <td class="col-ts">{{ formatTs(row.created_at) }}</td>
               </tr>
             }
           </tbody>
@@ -36,13 +43,13 @@ import type { ExecutionListItem } from '../../core/models/execution.models';
       </div>
     }
   `,
-  styles: `
-    .muted {
-      color: var(--muted);
-    }
-  `,
+  styles: ``,
 })
 export class ExecutionListComponent {
   @Input({ required: true }) items: ExecutionListItem[] = [];
   @Output() select = new EventEmitter<string>();
+
+  shortId = shortExecutionId;
+  formatTs = formatIsoShort;
+  statusClass = executionStatusModifier;
 }

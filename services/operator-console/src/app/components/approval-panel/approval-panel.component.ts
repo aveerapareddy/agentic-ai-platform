@@ -9,74 +9,83 @@ import type { ExecutionDetail } from '../../core/models/execution.models';
   imports: [FormsModule],
   template: `
     @if (execution?.status === 'awaiting_approval') {
-      <div class="panel approval">
-        <h2>Approval</h2>
-        <p class="muted">
-          Execution is <strong>awaiting_approval</strong>. Decisions are sent to <code>/v1/executions/…/approvals</code>
-          only; the platform applies governance rules.
+      <section class="oc-panel approval-panel">
+        <h2 class="approval-panel__title">Awaiting approval</h2>
+        <p class="approval-panel__lead">
+          This execution is gated on a human decision. Submitting sends
+          <span class="mono">POST …/approvals</span>
+          via api-gateway; the platform applies governance rules.
         </p>
-        <div class="row">
+        <div class="approval-panel__fields">
           <label>
-            Approver
-            <input type="text" [(ngModel)]="approver" name="approver" placeholder="e.g. operator_id" />
+            <span class="oc-label">Approver</span>
+            <input type="text" [(ngModel)]="approver" name="approver" placeholder="Operator identity" />
+          </label>
+          <label>
+            <span class="oc-label">Notes</span>
+            <input type="text" [(ngModel)]="notes" name="notes" placeholder="Optional" />
           </label>
         </div>
-        <div class="row">
-          <label>
-            Notes
-            <input type="text" [(ngModel)]="notes" name="notes" />
-          </label>
-        </div>
-        <div class="actions">
-          <button type="button" class="primary" [disabled]="!canSubmit" (click)="submit('approve')">
-            Approve
+        <div class="approval-panel__actions">
+          <button type="button" class="oc-btn oc-btn--primary" [disabled]="!canSubmit" (click)="submit('approve')">
+            @if (busy && lastIntent === 'approve') {
+              Submitting…
+            } @else {
+              Approve
+            }
           </button>
-          <button type="button" class="danger" [disabled]="!canSubmit" (click)="submit('reject')">
-            Reject
+          <button type="button" class="oc-btn oc-btn--danger" [disabled]="!canSubmit" (click)="submit('reject')">
+            @if (busy && lastIntent === 'reject') {
+              Submitting…
+            } @else {
+              Reject
+            }
           </button>
         </div>
         @if (error) {
-          <p class="err-text">{{ error }}</p>
+          <p class="oc-err-text approval-panel__error">{{ error }}</p>
         }
-      </div>
+      </section>
     }
   `,
   styles: `
-    .approval {
-      border-color: var(--warn);
+    .mono {
+      font-family: var(--mono);
+      font-size: 0.9em;
     }
-    .row {
-      margin-bottom: 0.65rem;
-    }
-    label {
+    .approval-panel__fields {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
-      color: var(--muted);
-      font-size: 0.85rem;
+      gap: var(--space-3);
+      margin-top: var(--space-2);
     }
-    input {
+    .approval-panel__fields label {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+    .approval-panel__fields input {
       max-width: 28rem;
     }
-    .actions {
+    .approval-panel__actions {
       display: flex;
-      gap: 0.5rem;
-      margin-top: 0.75rem;
+      gap: var(--space-3);
+      margin-top: var(--space-4);
+      flex-wrap: wrap;
     }
-    code {
-      font-family: var(--mono);
-      font-size: 0.85em;
+    .approval-panel__error {
+      margin-top: var(--space-3);
     }
   `,
 })
 export class ApprovalPanelComponent {
   @Input() execution: ExecutionDetail | null = null;
-  /** Emitted after a successful approval API call so the parent can reload execution + trace. */
   @Output() decided = new EventEmitter<void>();
 
   approver = '';
   notes = '';
   busy = false;
+  lastIntent: 'approve' | 'reject' | null = null;
   error: string | null = null;
 
   constructor(private readonly api: ExecutionApiService) {}
@@ -100,6 +109,7 @@ export class ApprovalPanelComponent {
       return;
     }
     this.busy = true;
+    this.lastIntent = decision;
     this.error = null;
     this.api
       .submitApproval(this.execution.execution_id, {
@@ -112,10 +122,12 @@ export class ApprovalPanelComponent {
       .subscribe({
         next: () => {
           this.busy = false;
+          this.lastIntent = null;
           this.decided.emit();
         },
         error: (e: Error) => {
           this.busy = false;
+          this.lastIntent = null;
           this.error = e.message;
         },
       });

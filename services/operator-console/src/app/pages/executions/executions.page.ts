@@ -23,12 +23,13 @@ const STATUSES = [
   standalone: true,
   imports: [FormsModule, ExecutionListComponent],
   template: `
-    <h1>Executions</h1>
-    <p class="muted">
-      Data from <code class="mono">GET /v1/executions</code>. Filters map to query params; execution ID search is client-side on the loaded page.
+    <h1 class="oc-page-title">Executions</h1>
+    <p class="oc-page-lead">
+      List from <span class="mono">GET /v1/executions</span>. Filters use gateway query parameters; execution ID
+      contains filter is applied to the loaded page client-side.
     </p>
 
-    <div class="filters panel">
+    <div class="oc-filters">
       <label>
         Tenant ID
         <input type="text" [(ngModel)]="tenantId" (ngModelChange)="reload()" name="tenant" />
@@ -50,45 +51,22 @@ const STATUSES = [
         </select>
       </label>
       <label>
-        Search execution ID (contains)
+        Execution ID contains
         <input type="text" [(ngModel)]="searchId" name="search" />
       </label>
-      <button type="button" (click)="reload()">Refresh</button>
+      <button type="button" class="oc-btn" (click)="reload()" [disabled]="loading">Refresh</button>
     </div>
 
     @if (loadError) {
-      <p class="err-text">{{ loadError }}</p>
+      <div class="oc-error" role="alert">{{ loadError }}</div>
     }
     @if (loading) {
-      <p class="muted">Loading…</p>
+      <p class="oc-loading">Loading executions…</p>
     } @else {
       <app-execution-list [items]="filteredItems" (select)="open($event)" />
     }
   `,
-  styles: `
-    h1 {
-      font-size: 1.35rem;
-      margin: 0 0 0.5rem;
-    }
-    .muted {
-      color: var(--muted);
-      margin-bottom: 1rem;
-    }
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      align-items: flex-end;
-      margin-bottom: 1rem;
-    }
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
-  `,
+  styles: ``,
 })
 export class ExecutionsPage implements OnInit {
   workflows = WORKFLOWS;
