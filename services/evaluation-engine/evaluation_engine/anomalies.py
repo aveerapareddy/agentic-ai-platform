@@ -11,6 +11,8 @@ ELEVATED_WORKFLOW_FAILURE_RATE = 0.35
 MIN_EXECUTIONS_FOR_WORKFLOW_RULE = 5
 POLICY_DENY_SHARE = 0.25
 MIN_POLICY_EVALS_FOR_DENY_RULE = 6
+MIN_TOOL_INVOCATIONS_FOR_FAILURE_RULE = 8
+HIGH_TOOL_FAILURE_SHARE = 0.5
 
 
 def detect_anomalies(
@@ -80,5 +82,27 @@ def detect_anomalies(
                     },
                 )
             )
+
+    for tool_name, roll in aggregated.by_tool_name.items():
+        if roll.invocations >= MIN_TOOL_INVOCATIONS_FOR_FAILURE_RULE:
+            fail_share = roll.failures / roll.invocations
+            if fail_share >= HIGH_TOOL_FAILURE_SHARE:
+                findings.append(
+                    AnomalyFinding(
+                        code="repeated_tool_failures",
+                        severity="warning",
+                        explanation=(
+                            f"Tool {tool_name!r} failure share {fail_share:.2f} "
+                            f">= {HIGH_TOOL_FAILURE_SHARE} over {roll.invocations} invocations "
+                            "in scope (aggregated ToolCall rows)."
+                        ),
+                        evidence={
+                            "tool_name": tool_name,
+                            "invocations": roll.invocations,
+                            "failures": roll.failures,
+                            "threshold_failure_share": HIGH_TOOL_FAILURE_SHARE,
+                        },
+                    )
+                )
 
     return findings

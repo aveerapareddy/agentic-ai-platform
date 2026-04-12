@@ -3,7 +3,12 @@ from evaluation_engine.anomalies import (
     MIN_MODEL_EVENTS_SINGLE_EXEC,
     detect_anomalies,
 )
-from evaluation_engine.models import AggregatedMetrics, ExecutionMetrics, WorkflowTypeRollup
+from evaluation_engine.models import (
+    AggregatedMetrics,
+    ExecutionMetrics,
+    ToolNameRollup,
+    WorkflowTypeRollup,
+)
 
 
 def test_anomaly_high_fallback_single_execution() -> None:
@@ -43,6 +48,18 @@ def test_anomaly_workflow_failure_rate() -> None:
     )
     findings = detect_anomalies(per, agg)
     assert any(f.code == "elevated_execution_failure_rate" for f in findings)
+
+
+def test_anomaly_repeated_tool_failures() -> None:
+    agg = AggregatedMetrics(
+        executions_in_scope=3,
+        by_tool_name={
+            "flaky_tool": ToolNameRollup(invocations=10, successes=4, failures=6),
+        },
+    )
+    findings = detect_anomalies([], agg)
+    tool_f = next(f for f in findings if f.code == "repeated_tool_failures")
+    assert tool_f.evidence["tool_name"] == "flaky_tool"
 
 
 def test_no_false_positive_low_fallback() -> None:

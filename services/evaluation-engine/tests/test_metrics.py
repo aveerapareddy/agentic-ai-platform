@@ -1,3 +1,4 @@
+from datetime import timedelta
 from uuid import uuid4
 
 from common_schemas import (
@@ -175,7 +176,7 @@ def test_policy_decisions_ordered() -> None:
         policy_evaluations=[pe1, pe2],
     )
     assert m.policy_decisions == ["conditional", "allow"]
-    assert m.primary_policy_decision == "allow"
+    assert m.policy_outcome == "allow"
 
 
 def test_validation_success_from_validation_outcome() -> None:
@@ -220,3 +221,95 @@ def test_validation_success_from_validation_outcome() -> None:
         policy_evaluations=[],
     )
     assert m.validation_success is True
+
+
+def test_total_latency_prefers_wall_clock() -> None:
+    eid = uuid4()
+    cid = uuid4()
+    sid = uuid4()
+    start = utc()
+    end = start + timedelta(seconds=2)
+    ex = Execution(
+        execution_id=eid,
+        workflow_type="generic",
+        status=ExecutionStatus.COMPLETED,
+        execution_mode=ExecutionMode.BACKGROUND,
+        execution_context_id=cid,
+        trace_timeline=[],
+        created_at=start,
+        updated_at=end,
+        completed_at=end,
+    )
+    step = Step(
+        step_id=sid,
+        execution_id=eid,
+        plan_id=uuid4(),
+        step_type=StepType.TOOL,
+        agent="a",
+        input={},
+        status=StepStatus.SUCCEEDED,
+        created_at=start,
+        updated_at=end,
+    )
+    sr = StepResult(
+        step_result_id=uuid4(),
+        step_id=sid,
+        latency_ms=50,
+        created_at=start,
+        updated_at=end,
+    )
+    m = compute_execution_metrics(
+        ex,
+        steps=[step],
+        step_results={sid: sr},
+        tool_calls=[],
+        policy_evaluations=[],
+    )
+    assert m.wall_clock_ms == 2000
+    assert m.step_latency_sum_ms == 50
+    assert m.total_latency_ms == 2000
+
+
+def test_total_latency_falls_back_to_step_sum_without_completed_at() -> None:
+    eid = uuid4()
+    cid = uuid4()
+    sid = uuid4()
+    now = utc()
+    ex = Execution(
+        execution_id=eid,
+        workflow_type="generic",
+        status=ExecutionStatus.EXECUTING,
+        execution_mode=ExecutionMode.BACKGROUND,
+        execution_context_id=cid,
+        trace_timeline=[],
+        created_at=now,
+        updated_at=now,
+        completed_at=None,
+    )
+    step = Step(
+        step_id=sid,
+        execution_id=eid,
+        plan_id=uuid4(),
+        step_type=StepType.TOOL,
+        agent="a",
+        input={},
+        status=StepStatus.SUCCEEDED,
+        created_at=now,
+        updated_at=now,
+    )
+    sr = StepResult(
+        step_result_id=uuid4(),
+        step_id=sid,
+        latency_ms=120,
+        created_at=now,
+        updated_at=now,
+    )
+    m = compute_execution_metrics(
+        ex,
+        steps=[step],
+        step_results={sid: sr},
+        tool_calls=[],
+        policy_evaluations=[],
+    )
+    assert m.wall_clock_ms is None
+    assert m.total_latency_ms == 120

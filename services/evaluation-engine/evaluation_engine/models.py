@@ -43,9 +43,9 @@ class ExecutionMetrics(BaseModel):
         default_factory=list,
         description="Policy evaluation decisions in chronological order (allow/deny/conditional).",
     )
-    primary_policy_decision: str | None = Field(
+    policy_outcome: str | None = Field(
         default=None,
-        description="Last policy decision in scope, if any.",
+        description="Last policy decision in chronological order (same as final row in policy_decisions).",
     )
 
     tool_calls_total: int = Field(default=0, ge=0)
@@ -62,6 +62,13 @@ class ExecutionMetrics(BaseModel):
     wall_clock_ms: int | None = Field(
         default=None,
         description="completed_at - created_at when both present, in milliseconds.",
+    )
+    total_latency_ms: int | None = Field(
+        default=None,
+        description=(
+            "Single execution latency signal: wall_clock_ms when completed_at is set, "
+            "otherwise sum of step_result.latency_ms when any step latency exists."
+        ),
     )
 
     computation_notes: list[str] = Field(

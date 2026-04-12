@@ -158,6 +158,21 @@ def compute_execution_metrics(
     if wc is not None:
         notes.append("wall_clock_ms = completed_at - created_at")
 
+    step_sum = lat_sum if lat_any else None
+    if wc is not None:
+        total_lat = wc
+        notes.append(
+            "total_latency_ms = wall_clock_ms (execution completed_at present; preferred over step sum)"
+        )
+    elif step_sum is not None:
+        total_lat = step_sum
+        notes.append(
+            "total_latency_ms = step_latency_sum_ms (no completed_at wall clock; sum of StepResult.latency_ms)"
+        )
+    else:
+        total_lat = None
+        notes.append("total_latency_ms undefined: no wall clock and no step latencies")
+
     return ExecutionMetrics(
         execution_id=str(execution.execution_id),
         workflow_type=execution.workflow_type,
@@ -169,12 +184,13 @@ def compute_execution_metrics(
         validation_success=val_ok,
         validation_detail=val_detail,
         policy_decisions=decisions,
-        primary_policy_decision=primary,
+        policy_outcome=primary,
         tool_calls_total=tc_total,
         tool_calls_success=tc_ok,
         tool_success_rate=tool_rate,
-        step_latency_sum_ms=lat_sum if lat_any else None,
+        step_latency_sum_ms=step_sum,
         wall_clock_ms=wc,
+        total_latency_ms=total_lat,
         computation_notes=notes,
     )
 

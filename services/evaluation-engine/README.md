@@ -13,10 +13,12 @@ Trace-grounded **metrics** and **aggregates** over persisted executions (Phase 8
 |--------|--------|
 | `model_fallback_rate` | `execution.trace_timeline` rows with `event_type=model_reasoning`: ratio where `path=deterministic_fallback` to all such events. |
 | `validation_success` | Validation-class steps (`StepType.VALIDATION`, planner name containing `validate`, …) via `StepResult.validation_outcome` / step status / `execution.validation_summary`. |
-| `policy_decisions` | `list_policy_evaluations_for_execution`, ordered by `created_at`; `primary_policy_decision` is the last. |
+| `policy_decisions` | `list_policy_evaluations_for_execution`, ordered by `created_at`. |
+| `policy_outcome` | Final decision in that order (chronological last). |
 | `tool_success_rate` | All `ToolCall` rows for the execution’s steps: `ToolCallStatus.SUCCESS` / total. |
 | `step_latency_sum_ms` | Sum of `StepResult.latency_ms` where present. |
 | `wall_clock_ms` | `completed_at - created_at` when both exist. |
+| `total_latency_ms` | `wall_clock_ms` when present; otherwise `step_latency_sum_ms` when any step latency exists; else undefined. |
 
 `ExecutionMetrics.computation_notes` lists how each run was interpreted.
 
@@ -81,12 +83,13 @@ pytest
   "validation_success": true,
   "validation_detail": "aggregated validation step outcomes",
   "policy_decisions": ["conditional"],
-  "primary_policy_decision": "conditional",
+  "policy_outcome": "conditional",
   "tool_calls_total": 4,
   "tool_calls_success": 4,
   "tool_success_rate": 1.0,
   "step_latency_sum_ms": 42,
   "wall_clock_ms": 1500,
+  "total_latency_ms": 1500,
   "computation_notes": ["…"]
 }
 ```
