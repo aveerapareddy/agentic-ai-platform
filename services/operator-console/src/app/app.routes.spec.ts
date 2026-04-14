@@ -5,6 +5,7 @@ describe('app.routes', () => {
     const paths = routes.map((r) => r.path);
     expect(paths).toContain('executions');
     expect(paths).toContain('executions/:executionId');
+    expect(paths).toContain('metrics');
   });
 
   it('defaults to executions', () => {

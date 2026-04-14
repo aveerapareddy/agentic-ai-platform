@@ -16,6 +16,7 @@ dependencies = [
     # pip treats `package @ file:...` differently from the same package installed via another
     # `-e` on the CLI and raises ResolutionImpossible. Those packages come in with orchestrator.
     "orchestrator-service @ file:../orchestrator",
+    "evaluation-engine @ file:../evaluation-engine",
 ]
 
 [tool.setuptools.packages.find]
@@ -37,4 +38,5 @@ pythonpath = [
     "../model-runtime",
     "../feedback-service",
     "../mukti-agent",
+    "../evaluation-engine",
 ]

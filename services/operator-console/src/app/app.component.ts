@@ -9,7 +9,12 @@ import { RouterLink, RouterOutlet } from '@angular/router';
     <div class="oc-shell">
       <header class="oc-header">
         <a routerLink="/executions" class="oc-header__brand">Operator Console</a>
-        <span class="oc-header__meta">Executions · Trace · Approvals · api-gateway</span>
+        <nav class="oc-header__nav">
+          <a routerLink="/executions">Executions</a>
+          <span class="oc-header__sep">·</span>
+          <a routerLink="/metrics">Metrics</a>
+        </nav>
+        <span class="oc-header__meta">Trace · Approvals · api-gateway</span>
       </header>
       <main class="oc-main">
         <router-outlet />

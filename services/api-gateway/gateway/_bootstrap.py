@@ -23,6 +23,7 @@ def ensure_platform_paths() -> None:
         services_root / "model-runtime",
         services_root / "feedback-service",
         services_root / "mukti-agent",
+        services_root / "evaluation-engine",
         services_root / "orchestrator",
     ]
     for p in ordered:

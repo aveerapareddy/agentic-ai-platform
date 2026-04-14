@@ -166,3 +166,64 @@ def test_supported_workflow_types(workflow: str) -> None:
             json={"workflow_type": workflow, "input": {}, "context": _base_context()},
         )
         assert r.status_code == 201, r.text
+
+
+def test_get_execution_metrics() -> None:
+    with _gateway() as (c, _app):
+        r = c.post(
+            "/v1/executions",
+            json={
+                "workflow_type": "generic",
+                "input": {"n": 1},
+                "context": _base_context(),
+            },
+        )
+        eid = r.json()["execution_id"]
+        mr = c.get(f"/v1/executions/{eid}/metrics")
+        assert mr.status_code == 200, mr.text
+        body = mr.json()
+        assert body["execution_id"] == eid
+        assert body["workflow_type"] == "generic"
+        assert "model_fallback_rate" in body
+        assert "tool_success_rate" in body
+        assert "computation_notes" in body
+
+
+def test_get_execution_metrics_not_found() -> None:
+    with _gateway() as (c, _app):
+        r = c.get("/v1/executions/00000000-0000-4000-8000-000000000099/metrics")
+        assert r.status_code == 404
+
+
+def test_get_aggregated_metrics() -> None:
+    with _gateway() as (c, _app):
+        c.post(
+            "/v1/executions",
+            json={
+                "workflow_type": "generic",
+                "input": {},
+                "context": _base_context(),
+            },
+        )
+        r = c.get("/v1/metrics", params={"tenant_id": "t-gateway", "limit": 20})
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert "executions_in_scope" in data
+        assert "by_workflow_type" in data
+        assert "by_step_type" in data
+        assert "by_tool_name" in data
+        assert "by_policy_decision" in data
+        assert data["executions_in_scope"] >= 1
+
+
+def test_get_anomalies_insight_shape() -> None:
+    with _gateway() as (c, _app):
+        r = c.get("/v1/insights/anomalies", params={"tenant_id": "t-gateway", "limit": 10})
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert "scope_description" in data
+        assert "execution_sample_size" in data
+        assert "anomalies" in data
+        assert isinstance(data["anomalies"], list)
+        for item in data["anomalies"]:
+            assert set(item.keys()) >= {"code", "severity", "explanation", "evidence"}

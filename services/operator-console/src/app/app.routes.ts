@@ -12,5 +12,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/execution-detail/execution-detail.page').then((m) => m.ExecutionDetailPage),
   },
+  {
+    path: 'metrics',
+    loadComponent: () => import('./pages/metrics/metrics.page').then((m) => m.MetricsPage),
+  },
   { path: '**', redirectTo: 'executions' },
 ];

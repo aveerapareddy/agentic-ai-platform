@@ -3,11 +3,14 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { ExecutionApiService } from '../../core/api/execution-api.service';
+import { MetricsApiService } from '../../core/api/metrics-api.service';
 import type { ExecutionDetail, TraceView } from '../../core/models/execution.models';
+import type { ExecutionMetricsDto } from '../../core/models/metrics.models';
 import { ExecutionSummaryComponent } from '../../components/execution-summary/execution-summary.component';
 import { ExecutionStepsComponent } from '../../components/execution-steps/execution-steps.component';
 import { TraceTimelineComponent } from '../../components/trace-timeline/trace-timeline.component';
 import { ApprovalPanelComponent } from '../../components/approval-panel/approval-panel.component';
+import { ExecutionMetricsComponent } from '../../components/execution-metrics/execution-metrics.component';
 import { shortExecutionId } from '../../core/ui/format-util';
 
 @Component({
@@ -16,8 +19,9 @@ import { shortExecutionId } from '../../core/ui/format-util';
   imports: [
     RouterLink,
     ExecutionSummaryComponent,
-    ExecutionStepsComponent,
     ApprovalPanelComponent,
+    ExecutionMetricsComponent,
+    ExecutionStepsComponent,
     TraceTimelineComponent,
   ],
   template: `
@@ -35,8 +39,13 @@ import { shortExecutionId } from '../../core/ui/format-util';
 
       <div class="oc-stack">
         <app-execution-summary [execution]="execution" />
-        <app-execution-steps [trace]="trace" />
         <app-approval-panel [execution]="execution" (decided)="reload()" />
+        <app-execution-metrics
+          [metrics]="metrics"
+          [loading]="false"
+          [error]="metricsError"
+        />
+        <app-execution-steps [trace]="trace" />
         <app-trace-timeline [trace]="trace" />
       </div>
     }
@@ -46,6 +55,8 @@ import { shortExecutionId } from '../../core/ui/format-util';
 export class ExecutionDetailPage implements OnInit {
   execution: ExecutionDetail | null = null;
   trace: TraceView | null = null;
+  metrics: ExecutionMetricsDto | null = null;
+  metricsError: string | null = null;
   loading = true;
   loadError: string | null = null;
 
@@ -56,6 +67,7 @@ export class ExecutionDetailPage implements OnInit {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly api: ExecutionApiService,
+    private readonly metricsApi: MetricsApiService,
   ) {}
 
   ngOnInit(): void {
@@ -74,13 +86,21 @@ export class ExecutionDetailPage implements OnInit {
   reload(): void {
     this.loading = true;
     this.loadError = null;
+    this.metricsError = null;
     forkJoin({
       ex: this.api.getExecution(this.executionId),
       tr: this.api.getTrace(this.executionId).pipe(catchError(() => of(null))),
+      mx: this.metricsApi.getExecutionMetrics(this.executionId).pipe(
+        catchError(() => {
+          this.metricsError = 'Could not load evaluation metrics from api-gateway.';
+          return of(null);
+        }),
+      ),
     }).subscribe({
-      next: ({ ex, tr }) => {
+      next: ({ ex, tr, mx }) => {
         this.execution = ex;
         this.trace = tr;
+        this.metrics = mx;
         this.loading = false;
       },
       error: (e: Error) => {
@@ -88,6 +108,7 @@ export class ExecutionDetailPage implements OnInit {
         this.loadError = e.message;
         this.execution = null;
         this.trace = null;
+        this.metrics = null;
       },
     });
   }
