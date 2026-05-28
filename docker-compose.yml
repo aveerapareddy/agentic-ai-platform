@@ -1,11 +1,100 @@
-# Local stack for development. Service images and ports to be defined when implementations exist.
+# Local product stack (Session G). Not production HA / Kubernetes.
+#
+# In-process behind api-gateway: orchestrator, policy-engine, tool-runtime, knowledge-service,
+# model-runtime (fake default), feedback-service, mukti-agent, evaluation-engine.
+#
+# Usage:
+#   cp .env.example .env
+#   docker compose up -d postgres
+#   make migrate
+#   docker compose up -d api-gateway operator-console
+#   make seed
 
 services:
-  # TODO: api-gateway, orchestrator, policy-engine, tool-runtime, knowledge-service,
-  # TODO: feedback-service, mukti-agent, databases, message bus as needed
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-agentic_dev}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-agentic_dev}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  placeholder:
-    image: alpine:3.20
-    command: ["sleep", "infinity"]
+  migrate:
+    image: python:3.12-slim-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app:ro
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/agentic_dev}
+    command:
+      - bash
+      - -c
+      - |
+        pip install -q sqlalchemy psycopg[binary] && python scripts/apply_migrations.py
+    depends_on:
+      postgres:
+        condition: service_healthy
     profiles:
-      - placeholder
+      - migrate
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/agentic_dev}
+      GATEWAY_USE_POSTGRES: ${GATEWAY_USE_POSTGRES:-true}
+      MODEL_PROVIDER: ${MODEL_PROVIDER:-fake}
+      GATEWAY_ALLOW_DEV_PRINCIPAL_FALLBACK: ${GATEWAY_ALLOW_DEV_PRINCIPAL_FALLBACK:-true}
+      GATEWAY_DEV_TENANT_ID: ${GATEWAY_DEV_TENANT_ID:-dev-tenant}
+      GATEWAY_DEV_PRINCIPAL_ID: ${GATEWAY_DEV_PRINCIPAL_ID:-dev-operator}
+      GATEWAY_DEV_ROLES: ${GATEWAY_DEV_ROLES:-operator,admin,approver}
+      GATEWAY_SCHEDULE_EXECUTION_START: ${GATEWAY_SCHEDULE_EXECUTION_START:-true}
+      GATEWAY_USE_EXECUTION_WORKER_QUEUE: ${GATEWAY_USE_EXECUTION_WORKER_QUEUE:-true}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/runtime')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+  operator-console:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.console
+    ports:
+      - "${CONSOLE_PORT:-4200}:80"
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
+  seed:
+    image: python:3.12-slim-bookworm
+    working_dir: /app
+    volumes:
+      - .:/app:ro
+    environment:
+      GATEWAY_URL: http://api-gateway:8080
+      DEMO_TENANT_ID: ${GATEWAY_DEV_TENANT_ID:-dev-tenant}
+    command: ["bash", "-c", "pip install -q httpx && python scripts/seed_demo_data.py"]
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    profiles:
+      - seed
+
+volumes:
+  pgdata:

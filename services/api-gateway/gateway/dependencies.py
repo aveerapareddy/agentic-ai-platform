@@ -19,7 +19,7 @@ from gateway.services.replay_diff_facade import ReplayDiffFacade
 
 ensure_platform_paths()
 
-from app.adapters.repository import InMemoryRepository
+from gateway.db import build_feedback_repository, build_repository
 from app.services.execution_service import ExecutionService
 from app.services.replay_diff_service import ReplayDiffService
 from app.runtime.queue import InMemoryExecutionQueue
@@ -34,7 +34,7 @@ from policy_engine.service import PolicyEvaluationService
 @dataclass
 class GatewayState:
     settings: Settings
-    repository: InMemoryRepository
+    repository: object
     execution_queue: InMemoryExecutionQueue
     execution_service: ExecutionService
     execution_worker: ExecutionWorker
@@ -49,11 +49,11 @@ class GatewayState:
 
 def build_gateway_state(settings: Settings | None = None) -> GatewayState:
     settings = settings or get_settings()
-    repo = InMemoryRepository()
+    repo = build_repository(settings)
     queue = InMemoryExecutionQueue()
     execution_service = ExecutionService(repo, queue=queue)
     worker = ExecutionWorker(execution_service, queue)
-    feedback_service = FeedbackService()
+    feedback_service = FeedbackService(build_feedback_repository(settings))
     evaluation_service = EvaluationService(repo)
     mukti_service = MuktiService()
     replay_service = ReplayService(repo, execution_service)

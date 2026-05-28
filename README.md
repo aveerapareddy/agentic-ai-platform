@@ -17,7 +17,7 @@ Operational work over many systems needs **bounded automation**: side effects an
 | Workflow | Role in the platform | Implementation today |
 |----------|----------------------|------------------------|
 | **Incident triage** | Structured analyze → evidence → validate → governance on escalation | **Full vertical** in orchestrator: planner, model-runtime for analyze/validate, tool-runtime + knowledge-service for `gather_evidence`, policy + approvals for `escalate_incident`, trace events. |
-| **Cost attribution** | Cross-system cost reasoning with retrieval and tools | **Scaffold**: same default two-step plan as other non–`incident_triage` workflows (`reasoning` → `validation`); no cost-specific tools or planners yet. |
+| **Cost attribution** | Cross-system cost reasoning with retrieval and tools | **Implemented**: dedicated planner steps, knowledge retrieval, gateway allowlist; fake model-runtime for structured steps. |
 | **Policy-aware execution** | Deny / conditional / allow with proposals and approvals | **Implemented** on `incident_triage` completion path (policy-engine + persisted proposals, evaluations, approvals). |
 | **Feedback / Mukti** | Post-execution labels and advisory execution feedback | **Implemented**: `feedback-service` (operator + Mukti rows), `mukti-agent` deterministic analyzer, `build_mukti_analysis_input` for frozen snapshots; **no** mutation of live executions. |
 
@@ -38,17 +38,39 @@ Deterministic scheduling and validation-before-success; policy and tools **not**
 | `services/model-runtime/` | Structured reasoning client; default fake provider |
 | `services/feedback-service/` | Operator feedback + `execution_feedback` persistence |
 | `services/mukti-agent/` | Post-execution advisory analysis |
-| `services/api-gateway/`, `services/operator-console/` | **Placeholders** (no runtime implementation in tree) |
+| `services/api-gateway/` | HTTP ingress, RBAC, SSE streaming, in-process orchestrator wiring |
+| `services/operator-console/` | Angular operator UI (executions, trace, policies, metrics, insights) |
 | `infra/db/migrations/` | PostgreSQL DDL (`001_initial_schema.sql`, `002_operator_feedback.sql`) |
-| `evals/`, `examples/`, `scripts/` | Present for future use; not required for core tests |
+| `scripts/` | Local migrations (`apply_migrations.py`), demo seed (`seed_demo_data.py`) |
+| `docker/` | Dockerfiles for gateway + console; `docker-compose.yml` local stack |
+| `evals/`, `examples/` | Present for future use |
 
 ## Current implementation status
 
-Phases **1–6** of `docs/overview/project-end-state.md` are represented in code to the depth described there: execution core, incident triage as the primary workflow, governance, tools/knowledge on evidence steps, bounded model-runtime, feedback + rule-based Mukti. **api-gateway** and **operator-console** are not implemented as services. **Cost attribution** is not a dedicated vertical beyond the generic planner path.
+Phases **1–8** (through operator console and gateway) are represented for local demo depth: execution core, **incident triage** and **cost attribution** workflows, governance, tools/knowledge, model-runtime (fake default), feedback + Mukti, **api-gateway** (HTTP + SSE), **operator-console**. Production packaging (Kubernetes, multi-region HA) is out of scope.
 
-## How to run the main demo path
+## Local stack (recommended demo)
 
-From the repository root, with Python 3.11+ and dependencies installed for `common-schemas` and orchestrator path deps (e.g. editable installs or `PYTHONPATH`):
+```bash
+cp .env.example .env
+make docker-up          # postgres + migrations + api-gateway + operator-console
+make docker-seed        # optional: seeded executions via real APIs
+```
+
+| Endpoint | URL |
+|----------|-----|
+| Operator console | http://localhost:4200 |
+| API gateway | http://localhost:8080 |
+| Runtime health | http://localhost:8080/health/runtime |
+| Prometheus metrics | http://localhost:8080/metrics |
+
+Uses **`MODEL_PROVIDER=fake`** by default — no external LLM API keys. See [local development runbook](docs/runbooks/local-development.md).
+
+Host-run alternative: `make setup`, `docker compose up -d postgres`, `make migrate`, then `make run-gateway` and `make run-console` in separate terminals.
+
+## Orchestrator-only demo (no HTTP)
+
+From the repository root, with Python 3.11+ and path deps installed:
 
 ```bash
 cd services/orchestrator
@@ -56,14 +78,14 @@ PYTHONPATH=".:../../packages/common-schemas/src:../policy-engine:../tool-runtime
   python -m app.main
 ```
 
-This creates an `incident_triage` execution in memory, runs it to completion (including policy allow path by default), and prints step summaries. It does **not** start HTTP servers or Mukti automatically; post-execution Mukti is invoked explicitly in tests via `build_mukti_analysis_input` + `MuktiService` + `FeedbackService` (see `app/tests/test_phase6_feedback_mukti.py`).
+Creates an `incident_triage` execution in memory and runs to completion. Does not start HTTP or the console.
 
 ### Tests (representative)
 
 ```bash
-cd services/orchestrator
-PYTHONPATH=".:../../packages/common-schemas/src:../policy-engine:../tool-runtime:../knowledge-service:../model-runtime:../feedback-service:../mukti-agent" \
-  python -m pytest app/tests -q
+make test                 # gateway + orchestrator unit tests
+make migrate-dry-run      # list SQL migrations without applying
+python -m pytest scripts/tests -q   # migration/seed script smoke
 ```
 
 PostgreSQL-backed tests are optional (`ORCHESTRATOR_TEST_DATABASE_URL`); see `app/tests/test_postgres_repository_integration.py`.
@@ -74,4 +96,5 @@ PostgreSQL-backed tests are optional (`ORCHESTRATOR_TEST_DATABASE_URL`); see `ap
 - [End state & phases](docs/overview/project-end-state.md) — scope and maturity targets  
 - [System overview](docs/architecture/system-overview.md) — services and trust boundaries  
 - [Runtime model](docs/architecture/runtime-model.md) — execution semantics  
-- [API design](docs/architecture/api-design.md) — intended HTTP surface (not all wired)
+- [API design](docs/architecture/api-design.md) — HTTP surface (gateway implements core `/v1` routes)
+- [Local development](docs/runbooks/local-development.md) — Docker stack, migrations, seed, troubleshooting

@@ -40,6 +40,14 @@ Stored **inputs**, **plan** revisions, **step** graph, **tool_call** inputs/outp
 
 Distributed backends (Datadog, Grafana Cloud, etc.) are deployment choices; this repo does not ship dashboards or SLO gates.
 
+## Execution streaming (Session F)
+
+- **Transport:** `GET /v1/executions/{execution_id}/stream` — **Server-Sent Events** (`text/event-stream`).
+- **Source of truth:** api-gateway **polls** the orchestrator repository snapshot (status, steps, timeline, approvals); no UI-side state machine and no distributed event bus.
+- **Event types:** `execution_updated`, `step_updated`, `trace_event`, `approval_required`, `execution_completed`, `execution_failed`, `execution_cancelled`, `replay_created`, `heartbeat` (see `common_schemas.streaming`).
+- **Observability:** `execution_stream_opened`, `execution_stream_closed`, `execution_stream_events_total`, `execution_stream_errors_total`, `execution_streams_active` / `execution_streams_closed_total` via `platform-observability`.
+- **Limits:** Poll interval default 500ms; max stream duration 600s; payloads bounded (no raw prompts or stack traces). Operator-console uses **fetch + SSE parse** so dev auth headers apply (browser `EventSource` cannot set custom headers).
+
 ## Runbooks and on-call
 
 `docs/runbooks/` exists; **local-development** and similar files may remain light until operations harden. Production on-call playbooks are a **non-goal** for the current portfolio phase (per end-state).

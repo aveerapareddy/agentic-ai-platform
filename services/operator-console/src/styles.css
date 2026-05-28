@@ -165,6 +165,20 @@ code,
 .oc-header__nav a {
   color: var(--accent-muted);
 }
+.oc-live-badge {
+  display: inline-block;
+  margin-left: var(--space-3);
+  padding: 0 var(--space-2);
+  font-size: var(--text-meta);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-muted);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  vertical-align: middle;
+}
+
 .oc-header__sep {
   color: var(--muted);
   font-weight: 400;

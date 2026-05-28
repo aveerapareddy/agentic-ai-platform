@@ -23,8 +23,8 @@ import {
     <section class="oc-panel">
       <h2 class="oc-section-title">Trace timeline</h2>
       <p class="oc-meta" style="margin: calc(-1 * var(--space-2)) 0 var(--space-4)">
-        Ordered events from <span class="mono">GET /v1/executions/…/trace</span> (api-gateway projection).
-        Grouped for inspection only — no client-side semantics.
+        Events from trace projection and <span class="mono">GET …/stream</span> (SSE). Grouped for
+        inspection only — no client-side semantics.
       </p>
 
       @if (loading) {
@@ -97,7 +97,7 @@ import {
               <div class="tl-section">
                 <div class="tl-section__label">{{ section.label }}</div>
                 @for (ev of section.events; track trackEv(ev, $index)) {
-                  <details class="tl-event {{ eventKind(ev) }}">
+                  <details class="tl-event {{ eventKind(ev) }}" [class.tl-event--live]="isLiveEvent(ev)">
                     <summary>
                       <span class="tl-event__ts oc-meta">{{ formatAt(ev['at']) }}</span>
                       <span class="tl-event__type">{{ eventTypeLabel(ev) }}</span>
@@ -288,6 +288,9 @@ import {
       margin: 0;
       padding: 0 var(--space-4) var(--space-3);
     }
+    .tl-event--live {
+      border-left: 2px solid var(--accent);
+    }
     .tl-record-card {
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -314,6 +317,7 @@ export class TraceTimelineComponent {
   @Input() loading = false;
   @Input() error: string | null = null;
   @Input() totalLatencyMs: number | null = null;
+  @Input() newEventKeys: Set<string> | null = null;
 
   formatLatencyMs = formatLatencyMs;
   payloadRows = payloadFieldRows;
@@ -361,7 +365,14 @@ export class TraceTimelineComponent {
   }
 
   trackEv(ev: TimelineEvent, i: number): string {
+    const sk = ev['_streamKey'];
+    if (typeof sk === 'string') return sk;
     return `${String(ev['at'])}-${String(ev['event_type'])}-${i}`;
+  }
+
+  isLiveEvent(ev: TimelineEvent): boolean {
+    const sk = ev['_streamKey'];
+    return typeof sk === 'string' && (this.newEventKeys?.has(sk) ?? false);
   }
 
   toolTrack(tc: Record<string, unknown>, i: number): string {

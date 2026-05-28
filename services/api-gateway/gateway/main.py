@@ -17,6 +17,7 @@ from gateway.routers import (
     operational,
     policies,
     replay,
+    stream,
     trace,
 )
 
@@ -51,6 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(replay.router, prefix="/v1")
     app.include_router(insights.router, prefix="/v1")
     app.include_router(policies.router, prefix="/v1")
+    app.include_router(stream.router, prefix="/v1")
     app.include_router(operational.router)
     return app
 

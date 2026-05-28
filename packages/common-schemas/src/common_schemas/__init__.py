@@ -1,6 +1,7 @@
 """Shared Pydantic contracts aligned with the platform runtime model."""
 
 from .access import Principal, RequestContext, Role, TenantContext
+from .streaming import ExecutionStreamEvent, ExecutionStreamEventType
 from .execution import (
     Execution,
     ExecutionContext,
@@ -118,6 +119,8 @@ __all__ = [
     "ExecutionPlan",
     "ExecutionStatus",
     "ExecutionSummary",
+    "ExecutionStreamEvent",
+    "ExecutionStreamEventType",
     "ExecutionTraceReference",
     "EvidenceChunk",
     "FeedbackId",

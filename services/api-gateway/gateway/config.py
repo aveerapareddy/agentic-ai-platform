@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     dev_principal_id: str = "dev-operator"
     dev_tenant_id: str = "dev-tenant"
     dev_roles: str = "operator,admin"
+    stream_poll_interval_ms: int = 500
+    stream_heartbeat_sec: int = 15
+    stream_max_duration_sec: int = 600
+    use_postgres: bool = False
 
 
 def get_settings() -> Settings:

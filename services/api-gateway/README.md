@@ -29,9 +29,11 @@ Business evaluation aggregates remain under **`GET /v1/metrics`**.
 | `POST` | `/v1/executions/{execution_id}/cancel` | Requests cancellation; orchestrator transitions to `cancelled` when allowed. |
 
 Background runs (`execution_mode: background` + `GATEWAY_USE_EXECUTION_WORKER_QUEUE=true`) enqueue work for the in-process worker instead of blocking the HTTP handler.
+
 | `GET` | `/v1/executions/{execution_id}/replay-diff/{replay_execution_id}` | Delegates to `ReplayDiffService`: structured `ReplayDiffSummary` (read-only comparison of stored artifacts). |
 | `GET` | `/v1/policies` | Lists deterministic rule descriptors from policy-engine (**admin** role). |
 | `POST` | `/v1/policies/simulate` | What-if policy evaluation (**admin** role); does not mutate rules. |
+| `GET` | `/v1/executions/{execution_id}/stream` | **SSE** observational stream (status, steps, trace, approvals); RBAC + tenant scoped. |
 
 ## Auth (Session E — local/dev)
 
@@ -45,8 +47,27 @@ Environment:
 | `GATEWAY_DEV_PRINCIPAL_ID` | `dev-operator` | Fallback principal |
 | `GATEWAY_DEV_TENANT_ID` | `dev-tenant` | Fallback tenant |
 | `GATEWAY_DEV_ROLES` | `operator,admin` | Fallback roles |
+| `GATEWAY_USE_POSTGRES` | `false` | Use `PostgresRepository` + `PostgresFeedbackRepository` when `true` (requires `DATABASE_URL`) |
+| `DATABASE_URL` | — | PostgreSQL URL (`postgresql+psycopg://…`); used when postgres mode is on |
 
 Execution create merges trusted tenant/principal into `context`; conflicting `context.tenant_id` returns **400**.
+
+## Local stack (Docker)
+
+The gateway image bundles orchestrator, policy-engine, tool-runtime, knowledge-service, model-runtime, feedback-service, mukti-agent, and evaluation-engine **in-process** (single HTTP container—not a monolith rewrite). Compose sets `GATEWAY_USE_POSTGRES=true` and `MODEL_PROVIDER=fake`.
+
+```bash
+# from repo root
+make docker-up
+curl -s http://127.0.0.1:8080/health/runtime
+make seed   # or: make docker-seed
+```
+
+See [docs/runbooks/local-development.md](../../docs/runbooks/local-development.md).
+
+## Execution streaming (Session F)
+
+SSE endpoint polls the in-process repository and diffs snapshots into bounded `ExecutionStreamEvent` messages. Config: `GATEWAY_STREAM_POLL_INTERVAL_MS` (500), `GATEWAY_STREAM_HEARTBEAT_SEC` (15), `GATEWAY_STREAM_MAX_DURATION_SEC` (600). Stream ends after terminal execution status or max duration. **Observational only** — orchestrator remains source of truth.
 
 ## Supported `workflow_type` values (gateway allowlist)
 
@@ -75,14 +96,12 @@ cd services/api-gateway
 python -m pytest gateway/tests -q
 ```
 
-## Intentionally not built (Phase 8 scope)
+## Intentionally not built (local / Phase 8 scope)
 
-- Operator console UI
-- Full authentication / authorization (placeholder hook only)
-- Metrics / evaluation-engine routes
-- Durable idempotency store (in-memory per process only)
-- Dedicated replay metadata table (provenance currently in `execution.input`); replay diff UI
-- Separate HTTP orchestrator process (in-process wiring only)
+- Enterprise IAM (header-based RBAC + dev fallback only)
+- Durable cross-process idempotency store (in-memory per gateway process unless postgres backs executions)
+- Separate HTTP microservice per Python package (local compose uses in-process wiring)
+- Production HA deployment (see constitution / end-state for future packaging)
 
 ## Orchestrator additions
 

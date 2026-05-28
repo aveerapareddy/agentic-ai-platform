@@ -13,6 +13,8 @@ Minimal **internal** Angular UI over **api-gateway** only ([system-overview.md](
 | `/insights` | Mukti v2 cross-execution insights (`GET /v1/insights/mukti`). |
 | `/policies` | Policy rule catalog and simulation (`GET /v1/policies`, `POST /v1/policies/simulate`). Read-only; no rule editing. |
 
+Execution detail subscribes to **`GET /v1/executions/{id}/stream`** (SSE) for live status, trace append, step updates, and approval visibility. Uses `ExecutionStreamService` (fetch + SSE parse with auth headers). Stops on terminal states; no client-side orchestration.
+
 ## Components
 
 - **execution-list** — table of list items; row opens detail.
@@ -59,16 +61,26 @@ Minimal **internal** Angular UI over **api-gateway** only ([system-overview.md](
 
 ## Run
 
+### Docker (with api-gateway)
+
+From repo root: `make docker-up` → open **http://localhost:4200**. nginx serves the built app and proxies `/v1`, `/metrics`, and `/health/` to the `api-gateway` service ([`docker/nginx-console.conf`](../../docker/nginx-console.conf)).
+
+### Host dev server
+
 1. Start **api-gateway** (e.g. port `8080`).  
 2. Dev server proxies `/v1` → gateway ([`proxy.conf.json`](./proxy.conf.json)).
 
 ```bash
-cd services/operator-console
-npm install
-npm start
+make run-console
+# or: cd services/operator-console && npm install && npm start
 ```
 
-Open `http://127.0.0.1:4200`. For production builds, set `API_BASE_URL` via `API_BASE_URL` token provider.
+Open `http://127.0.0.1:4200`. For custom API hosts, set `API_BASE_URL` via the token provider.
+
+### Health
+
+- Static UI: nginx `GET /` (compose healthcheck).
+- API/runtime: proxied `GET /health/runtime` on the gateway.
 
 ## Tests
 
