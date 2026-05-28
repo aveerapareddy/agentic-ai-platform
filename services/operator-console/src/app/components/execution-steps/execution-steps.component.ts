@@ -8,20 +8,21 @@ import { StepCardComponent } from '../step-card/step-card.component';
   standalone: true,
   imports: [StepCardComponent],
   template: `
-    <section class="oc-panel">
-      <h2 class="oc-section-title">Steps</h2>
-      @if (!trace || trace.steps.length === 0) {
-        <p class="oc-meta oc-empty">No steps in trace projection.</p>
-      } @else {
+    @if (!trace || trace.steps.length === 0) {
+      <p class="oc-meta oc-empty">No steps in trace projection.</p>
+    } @else {
+      <div class="oc-step-list">
         @for (row of trace.steps; track $index) {
           <app-step-card [row]="row" [pathKind]="pathForRow(row)" />
         }
-      }
-    </section>
+      </div>
+    }
   `,
   styles: `
-    :host {
-      display: block;
+    .oc-step-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
     }
   `,
 })

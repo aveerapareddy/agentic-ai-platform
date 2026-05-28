@@ -19,6 +19,17 @@ import { ApprovalPanelComponent } from '../../components/approval-panel/approval
 import { ExecutionMetricsComponent } from '../../components/execution-metrics/execution-metrics.component';
 import { ExecutionReplayPanelComponent } from '../../components/execution-replay-panel/execution-replay-panel.component';
 import { shortExecutionId } from '../../core/ui/format-util';
+import { executionStatusModifier } from '../../core/ui/status-util';
+import { workflowBadgeClass } from '../../core/ui/workflow-util';
+
+const SECTION_LINKS = [
+  { id: 'summary', label: 'Summary' },
+  { id: 'lifecycle', label: 'Lifecycle' },
+  { id: 'timeline', label: 'Timeline' },
+  { id: 'metrics', label: 'Metrics' },
+  { id: 'replay', label: 'Replay' },
+  { id: 'approval', label: 'Approval' },
+] as const;
 
 @Component({
   selector: 'app-execution-detail-page',
@@ -40,36 +51,81 @@ import { shortExecutionId } from '../../core/ui/format-util';
       <div class="oc-error" role="alert">{{ loadError }}</div>
     }
     @if (loading) {
-      <p class="oc-loading">Loading execution…</p>
+      <div class="oc-skeleton-stack" aria-busy="true">
+        <div class="oc-skeleton oc-skeleton--ribbon"></div>
+        <div class="oc-skeleton oc-skeleton--panel"></div>
+      </div>
     } @else if (execution) {
-      <h1 class="oc-page-title mono">
-        {{ shortId(execution.execution_id) }}
-        @if (streamActive) {
-          <span class="oc-live-badge" title="Subscribed to execution stream">Live</span>
+      <header class="oc-exec-ribbon">
+        <div class="oc-exec-ribbon__main">
+          <h1 class="oc-exec-ribbon__title mono">{{ shortId(execution.execution_id) }}</h1>
+          <span [class]="wfClass(execution.workflow_type)">{{ execution.workflow_type }}</span>
+          <span class="status-badge {{ statusClass(execution.status) }}">{{ execution.status }}</span>
+          @if (streamActive) {
+            <span class="oc-live-pill" title="Subscribed to execution stream">Live</span>
+          }
+        </div>
+        <p class="oc-exec-ribbon__id mono oc-meta">{{ execution.execution_id }}</p>
+        <div class="oc-exec-ribbon__pills">
+          @if (execution.parent_execution_id) {
+            <span class="oc-pill">Replay child</span>
+          }
+          @if (execution.completed_at) {
+            <span class="oc-pill oc-pill--muted">Completed {{ execution.completed_at }}</span>
+          }
+          @if (metrics?.total_latency_ms != null) {
+            <span class="oc-pill oc-pill--muted">Latency {{ metrics!.total_latency_ms }} ms</span>
+          }
+        </div>
+      </header>
+
+      <nav class="oc-exec-nav" aria-label="Execution sections">
+        @for (link of sectionLinks; track link.id) {
+          <a class="oc-exec-nav__link" [href]="'#' + link.id">{{ link.label }}</a>
         }
-      </h1>
-      <p class="oc-page-lead oc-meta mono" style="margin-top: calc(-1 * var(--space-2))">{{ execution.execution_id }}</p>
+      </nav>
+
       @if (streamError) {
         <p class="oc-meta oc-empty">Stream: {{ streamError }} (detail still refreshes on manual reload)</p>
       }
 
-      <div class="oc-stack">
-        <app-execution-summary [execution]="execution" />
-        <app-approval-panel [execution]="execution" (decided)="reload()" />
-        <app-execution-metrics
-          [metrics]="metrics"
-          [loading]="metricsLoading"
-          [error]="metricsError"
-        />
-        <app-execution-replay-panel [execution]="execution" />
-        <app-execution-steps [trace]="trace" />
-        <app-trace-timeline
-          [trace]="trace"
-          [loading]="loading"
-          [error]="traceError"
-          [totalLatencyMs]="metrics?.total_latency_ms ?? null"
-          [newEventKeys]="newTimelineKeys"
-        />
+      <div class="oc-exec-layout">
+        <div class="oc-exec-main oc-stack">
+          <div id="summary">
+            <app-execution-summary [execution]="execution" />
+          </div>
+
+          <section id="lifecycle" class="oc-panel">
+            <h2 class="oc-section-title">Execution lifecycle</h2>
+            <app-execution-steps [trace]="trace" />
+          </section>
+
+          <div id="timeline">
+            <app-trace-timeline
+              [trace]="trace"
+              [loading]="loading"
+              [error]="traceError"
+              [totalLatencyMs]="metrics?.total_latency_ms ?? null"
+              [newEventKeys]="newTimelineKeys"
+            />
+          </div>
+
+          <div id="metrics">
+            <app-execution-metrics
+              [metrics]="metrics"
+              [loading]="metricsLoading"
+              [error]="metricsError"
+            />
+          </div>
+
+          <div id="replay">
+            <app-execution-replay-panel [execution]="execution" />
+          </div>
+
+          <div id="approval">
+            <app-approval-panel [execution]="execution" (decided)="reload()" />
+          </div>
+        </div>
       </div>
     }
   `,
@@ -88,7 +144,10 @@ export class ExecutionDetailPage implements OnInit, OnDestroy {
   streamError: string | null = null;
   newTimelineKeys = new Set<string>();
 
+  readonly sectionLinks = SECTION_LINKS;
   shortId = shortExecutionId;
+  statusClass = executionStatusModifier;
+  wfClass = workflowBadgeClass;
 
   private executionId = '';
   private streamAbort?: AbortController;

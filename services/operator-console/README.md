@@ -4,14 +4,23 @@ Minimal **internal** Angular UI over **api-gateway** only ([system-overview.md](
 
 ## Pages
 
+Navigation is grouped in the sidebar (Platform · Intelligence · Governance · System). All data still comes from **api-gateway** only.
+
 | Route | Purpose |
 |-------|---------|
 | `/executions` | List executions (`GET /v1/executions`), filters for `tenant_id`, `workflow_type`, `status`, client-side substring search on `execution_id`. |
-| `/executions/:executionId` | Detail (`GET /v1/executions/{id}`), trace (`GET /v1/executions/{id}/trace`), evaluation metrics, **replay request** panel, approvals when gated. |
-| `/executions/:sourceId/replay-diff/:replayId` | **Replay diff** (`GET /v1/executions/{source}/replay-diff/{replay}`) — server-computed comparison grouped by category and severity. |
-| `/metrics` | Platform aggregates (`GET /v1/metrics`). |
-| `/insights` | Mukti v2 cross-execution insights (`GET /v1/insights/mukti`). |
-| `/policies` | Policy rule catalog and simulation (`GET /v1/policies`, `POST /v1/policies/simulate`). Read-only; no rule editing. |
+| `/executions/:executionId` | Detail with sticky ribbon, section nav, trace timeline rail, metrics, replay, approvals. SSE via `GET /v1/executions/{id}/stream` when non-terminal. |
+| `/executions/:sourceId/replay-diff/:replayId` | **Replay diff** (`GET /v1/executions/{source}/replay-diff/{replay}`) — server-computed comparison with side-by-side value panels. |
+| `/live` | Live Activity — non-terminal executions from list API; poll refresh. |
+| `/replay` | Replay & Diff hub — investigation flow links (no new API). |
+| `/metrics`, `/evaluation` | Platform aggregates (`GET /v1/metrics`) — same page, evaluation alias route. |
+| `/insights` | Mukti v2 cross-execution insights (`GET /v1/insights/mukti`) — ranked cards and issue surfaces. |
+| `/policies` | Policy rule catalog and simulation (`GET /v1/policies`, `POST /v1/policies/simulate`). Read-only. |
+| `/approvals` | Executions filtered to `awaiting_approval`. |
+| `/audit` | Trace inspection guidance (links to executions / live). |
+| `/health` | Runtime health (`GET /health/runtime` via proxy). |
+| `/streaming` | SSE contract documentation (links to live / detail). |
+| `/config` | Local dev auth headers (read-only). |
 
 Execution detail subscribes to **`GET /v1/executions/{id}/stream`** (SSE) for live status, trace append, step updates, and approval visibility. Uses `ExecutionStreamService` (fetch + SSE parse with auth headers). Stops on terminal states; no client-side orchestration.
 

@@ -12,22 +12,23 @@ import {
   groupDiffItemsByCategory,
 } from '../../core/ui/replay-diff-util';
 import { shortExecutionId } from '../../core/ui/format-util';
+import { PageHeaderComponent } from '../../layout/page-header.component';
 
 @Component({
   selector: 'app-replay-diff-page',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, PageHeaderComponent],
   template: `
     <p class="back-link">
       <a [routerLink]="['/executions', sourceId]">← Source execution</a>
       <span class="oc-header__sep"> · </span>
       <a [routerLink]="['/executions', replayId]">Replay execution</a>
     </p>
-    <h1 class="oc-page-title">Replay diff</h1>
-    <p class="oc-page-lead">
-      Comparison from <span class="mono">GET /v1/executions/…/replay-diff/…</span> (evaluation-engine
-      projection via api-gateway). No client-side diff computation.
-    </p>
+    <app-page-header
+      title="Replay diff"
+      eyebrow="Platform"
+      lead="Server-computed comparison via GET /v1/executions/…/replay-diff/…. No client-side diff logic."
+    />
 
     @if (loadError) {
       <div class="oc-error" role="alert">{{ loadError }}</div>
@@ -54,9 +55,21 @@ import { shortExecutionId } from '../../core/ui/format-util';
         </div>
       </div>
 
-      <p class="oc-meta mono" style="margin-bottom: var(--space-4)">
-        Source {{ shortId(summary.source_execution_id) }} · Replay {{ shortId(summary.replay_execution_id) }}
-      </p>
+      <div class="oc-replay-banner">
+        <div class="oc-replay-banner__col">
+          <span class="oc-label">Source</span>
+          <a class="mono oc-replay-banner__id" [routerLink]="['/executions', sourceId]">{{
+            shortId(summary.source_execution_id)
+          }}</a>
+        </div>
+        <div class="oc-replay-banner__arrow" aria-hidden="true">⇄</div>
+        <div class="oc-replay-banner__col">
+          <span class="oc-label">Replay</span>
+          <a class="mono oc-replay-banner__id" [routerLink]="['/executions', replayId]">{{
+            shortId(summary.replay_execution_id)
+          }}</a>
+        </div>
+      </div>
 
       @if (summary.total_differences === 0) {
         <p class="oc-meta oc-empty">No differences reported between these executions.</p>
@@ -78,7 +91,7 @@ import { shortExecutionId } from '../../core/ui/format-util';
               </thead>
               <tbody>
                 @for (item of group.items; track diffItemKey(item)) {
-                  <tr>
+                  <tr class="oc-diff-row oc-diff-row--{{ item.severity }}">
                     <td>
                       <span class="oc-severity oc-severity--{{ item.severity }}">{{ item.severity }}</span>
                     </td>
@@ -88,19 +101,24 @@ import { shortExecutionId } from '../../core/ui/format-util';
                     <td>
                       @if (hasValues(item)) {
                         @if (isExpanded(item)) {
-                          <dl class="diff-values">
-                            <dt>Source</dt>
-                            <dd class="mono">{{ item.source_value ?? '—' }}</dd>
-                            <dt>Replay</dt>
-                            <dd class="mono">{{ item.replay_value ?? '—' }}</dd>
-                          </dl>
+                          <div class="oc-diff-compare">
+                            <div class="oc-diff-compare__side">
+                              <span class="oc-label">Source</span>
+                              <pre class="oc-diff-compare__val mono">{{ item.source_value ?? '—' }}</pre>
+                            </div>
+                            <div class="oc-diff-compare__side oc-diff-compare__side--replay">
+                              <span class="oc-label">Replay</span>
+                              <pre class="oc-diff-compare__val mono">{{ item.replay_value ?? '—' }}</pre>
+                            </div>
+                          </div>
                           <button type="button" class="oc-btn oc-btn--compact" (click)="toggle(item)">
-                            Hide values
+                            Collapse
                           </button>
                         } @else {
+                          <span class="oc-diff-indicator" aria-hidden="true">≠</span>
                           <span class="oc-meta">{{ valuePreview(item) }}</span>
                           <button type="button" class="oc-btn oc-btn--compact" (click)="toggle(item)">
-                            Show values
+                            Compare
                           </button>
                         }
                       } @else {
@@ -117,17 +135,61 @@ import { shortExecutionId } from '../../core/ui/format-util';
     }
   `,
   styles: `
-    .diff-values {
-      margin: 0 0 var(--space-2);
-      font-size: var(--text-meta);
+    .oc-replay-banner {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: var(--space-4);
+      align-items: center;
+      padding: var(--space-4) var(--space-5);
+      margin-bottom: var(--space-5);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface-elevated);
     }
-    .diff-values dt {
+    .oc-replay-banner__arrow {
       color: var(--muted);
-      margin-top: var(--space-2);
+      font-size: 1.25rem;
     }
-    .diff-values dd {
-      margin: var(--space-1) 0 0;
+    .oc-replay-banner__id {
+      display: block;
+      margin-top: var(--space-1);
+      font-size: var(--text-body);
+      color: var(--accent-muted);
+      text-decoration: none;
+    }
+    .oc-replay-banner__id:hover {
+      text-decoration: underline;
+    }
+    .oc-diff-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-3);
+      margin-bottom: var(--space-2);
+    }
+    .oc-diff-compare__side {
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+    .oc-diff-compare__side--replay {
+      border-color: rgba(91, 141, 239, 0.35);
+    }
+    .oc-diff-compare__val {
+      margin: var(--space-2) 0 0;
+      font-size: 0.75rem;
+      white-space: pre-wrap;
       word-break: break-word;
+      max-height: 8rem;
+      overflow: auto;
+    }
+    .oc-diff-indicator {
+      color: var(--warn-text);
+      margin-right: var(--space-2);
+      font-weight: 600;
+    }
+    .oc-diff-row--significant {
+      background: rgba(209, 77, 77, 0.04);
     }
     .oc-btn--compact {
       padding: var(--space-1) var(--space-2);

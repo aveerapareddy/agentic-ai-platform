@@ -6,54 +6,21 @@ import type { ExecutionListItem } from '../../core/models/execution.models';
 import { ExecutionListComponent } from '../../components/execution-list/execution-list.component';
 import { PageHeaderComponent } from '../../layout/page-header.component';
 
-const WORKFLOWS = ['', 'incident_triage', 'cost_attribution', 'generic'];
-const STATUSES = [
-  '',
-  'created',
-  'planning',
-  'executing',
-  'validating',
-  'awaiting_approval',
-  'completed',
-  'failed',
-  'cancelled',
-];
-
 @Component({
-  selector: 'app-executions-page',
+  selector: 'app-approvals-page',
   standalone: true,
   imports: [FormsModule, ExecutionListComponent, PageHeaderComponent],
   template: `
     <app-page-header
-      title="Executions"
-      eyebrow="Platform"
-      lead="List from GET /v1/executions. Gateway filters for tenant, workflow, and status; execution ID search is client-side on the loaded page."
+      title="Approvals"
+      eyebrow="Governance"
+      lead="Executions in awaiting_approval status from GET /v1/executions. Approve or reject on the execution detail page."
     />
 
     <div class="oc-filters">
       <label>
         Tenant ID
         <input type="text" [(ngModel)]="tenantId" (ngModelChange)="reload()" name="tenant" />
-      </label>
-      <label>
-        Workflow
-        <select [(ngModel)]="workflowType" (ngModelChange)="reload()" name="wf">
-          @for (w of workflows; track w) {
-            <option [value]="w">{{ w || '(any)' }}</option>
-          }
-        </select>
-      </label>
-      <label>
-        Status
-        <select [(ngModel)]="status" (ngModelChange)="reload()" name="st">
-          @for (s of statuses; track s) {
-            <option [value]="s">{{ s || '(any)' }}</option>
-          }
-        </select>
-      </label>
-      <label class="oc-filters__search">
-        Execution ID contains
-        <input type="search" [(ngModel)]="searchId" name="search" placeholder="Filter loaded rows…" />
       </label>
       <button type="button" class="oc-btn" (click)="reload()" [disabled]="loading">Refresh</button>
     </div>
@@ -66,25 +33,13 @@ const STATUSES = [
         <div class="oc-skeleton oc-skeleton--table"></div>
       </div>
     } @else {
-      <app-execution-list [items]="filteredItems" (select)="open($event)" />
+      <app-execution-list [items]="items" (select)="open($event)" />
     }
   `,
-  styles: `
-    .oc-filters__search {
-      flex: 1 1 12rem;
-      min-width: 10rem;
-    }
-  `,
+  styles: ``,
 })
-export class ExecutionsPage implements OnInit {
-  workflows = WORKFLOWS;
-  statuses = STATUSES;
-
+export class ApprovalsPage implements OnInit {
   tenantId = '';
-  workflowType = '';
-  status = '';
-  searchId = '';
-
   items: ExecutionListItem[] = [];
   loading = false;
   loadError: string | null = null;
@@ -98,20 +53,13 @@ export class ExecutionsPage implements OnInit {
     this.reload();
   }
 
-  get filteredItems(): ExecutionListItem[] {
-    const q = this.searchId.trim().toLowerCase();
-    if (!q) return this.items;
-    return this.items.filter((i) => i.execution_id.toLowerCase().includes(q));
-  }
-
   reload(): void {
     this.loading = true;
     this.loadError = null;
     this.api
       .listExecutions({
         tenant_id: this.tenantId.trim() || undefined,
-        workflow_type: this.workflowType || undefined,
-        status: this.status || undefined,
+        status: 'awaiting_approval',
         limit: 200,
       })
       .subscribe({

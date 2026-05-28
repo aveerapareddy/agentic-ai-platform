@@ -52,8 +52,9 @@ services:
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/agentic_dev}
-      GATEWAY_USE_POSTGRES: ${GATEWAY_USE_POSTGRES:-true}
+      # Compose stack always uses in-network Postgres (ignore host .env in-memory / 127.0.0.1).
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/agentic_dev
+      GATEWAY_USE_POSTGRES: "true"
       MODEL_PROVIDER: ${MODEL_PROVIDER:-fake}
       GATEWAY_ALLOW_DEV_PRINCIPAL_FALLBACK: ${GATEWAY_ALLOW_DEV_PRINCIPAL_FALLBACK:-true}
       GATEWAY_DEV_TENANT_ID: ${GATEWAY_DEV_TENANT_ID:-dev-tenant}
@@ -87,8 +88,9 @@ services:
       dockerfile: docker/Dockerfile.gateway
     environment:
       GATEWAY_URL: http://api-gateway:8080
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/agentic_dev}
-      GATEWAY_USE_POSTGRES: ${GATEWAY_USE_POSTGRES:-true}
+      # Fixed in-container DB URL (do not inherit host .env 127.0.0.1 or GATEWAY_USE_POSTGRES=false).
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/agentic_dev
+      GATEWAY_USE_POSTGRES: "true"
       DEMO_TENANT_ID: ${GATEWAY_DEV_TENANT_ID:-dev-tenant}
     command: ["bash", "-c", "pip install -q httpx && python /app/scripts/seed_demo_data.py"]
     depends_on:

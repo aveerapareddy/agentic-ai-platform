@@ -1,22 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { MetricsApiService } from '../../core/api/metrics-api.service';
 import type { AggregatedMetricsDto } from '../../core/models/metrics.models';
+import { PageHeaderComponent } from '../../layout/page-header.component';
 
 @Component({
   selector: 'app-metrics-page',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, PageHeaderComponent],
   template: `
-    <p class="back-link">
-      <a routerLink="/executions">← Executions</a>
-    </p>
-    <h1 class="oc-page-title">Platform metrics</h1>
-    <p class="oc-page-lead">
-      Aggregates from <span class="mono">GET /v1/metrics</span>. Dimensions match evaluation-engine rollups; no client-side
-      recomputation.
-    </p>
+    <app-page-header
+      title="Platform metrics"
+      eyebrow="Intelligence"
+      lead="Aggregates from GET /v1/metrics. Dimensions match evaluation-engine rollups — no client-side recomputation."
+    />
 
     <div class="oc-filters">
       <label>
@@ -42,9 +39,15 @@ import type { AggregatedMetricsDto } from '../../core/models/metrics.models';
       <div class="oc-error" role="alert">{{ loadError }}</div>
     }
     @if (loading) {
-      <p class="oc-loading">Loading aggregates…</p>
+      <div class="oc-skeleton-stack" aria-busy="true">
+        <div class="oc-skeleton oc-skeleton--stat"></div>
+        <div class="oc-skeleton oc-skeleton--table"></div>
+      </div>
     } @else if (aggregated && aggregated.executions_in_scope === 0) {
-      <p class="oc-meta oc-empty">No executions in scope for these filters. Adjust tenant or limits and refresh.</p>
+      <div class="oc-empty-state">
+        <p class="oc-empty-state__title">No executions in scope</p>
+        <p class="oc-meta">Adjust tenant or limits and refresh.</p>
+      </div>
     } @else if (aggregated) {
       <div class="oc-stat-row">
         <div class="oc-stat-card">

@@ -86,3 +86,12 @@ def test_persist_mukti_skips_without_postgres_mode(monkeypatch: pytest.MonkeyPat
     monkeypatch.delenv("ORCHESTRATOR_DATABASE_URL", raising=False)
     monkeypatch.setenv("GATEWAY_USE_POSTGRES", "false")
     seed.persist_mukti_execution_feedback(str(uuid4()))
+
+
+def test_postgres_seed_mode_with_database_url_overrides_gateway_flag_false(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seed = _load_seed()
+    monkeypatch.setenv("GATEWAY_USE_POSTGRES", "false")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://postgres:postgres@postgres:5432/agentic_dev")
+    assert seed._postgres_seed_mode() is True

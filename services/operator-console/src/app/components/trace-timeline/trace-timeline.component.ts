@@ -20,7 +20,7 @@ import {
   standalone: true,
   imports: [],
   template: `
-    <section class="oc-panel">
+    <section class="oc-panel oc-timeline-panel">
       <h2 class="oc-section-title">Trace timeline</h2>
       <p class="oc-meta" style="margin: calc(-1 * var(--space-2)) 0 var(--space-4)">
         Events from trace projection and <span class="mono">GET …/stream</span> (SSE). Grouped for
@@ -44,6 +44,17 @@ import {
           </p>
         }
 
+        <div class="tl-rail-wrap">
+          <div class="tl-rail" aria-hidden="true">
+            @for (group of view.groups; track group.key) {
+              <span
+                class="tl-rail__tick"
+                [class.tl-rail__tick--err]="group.counts.error > 0"
+                [title]="group.label"
+              ></span>
+            }
+          </div>
+          <div class="tl-rail-content">
         @for (group of view.groups; track group.key) {
           <div class="tl-step-group">
             <header class="tl-step-group__head">
@@ -132,6 +143,8 @@ import {
             }
           </div>
         }
+          </div>
+        </div>
 
         @if (hasRelatedRecords) {
           <div class="tl-records">
@@ -170,6 +183,31 @@ import {
     </section>
   `,
   styles: `
+    .tl-rail-wrap {
+      display: grid;
+      grid-template-columns: 12px 1fr;
+      gap: var(--space-4);
+    }
+    .tl-rail {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      padding-top: var(--space-2);
+    }
+    .tl-rail__tick {
+      flex: 1;
+      min-height: 1.25rem;
+      border-radius: 2px;
+      background: var(--border);
+      transition: background 0.15s ease;
+    }
+    .tl-rail__tick--err {
+      background: rgba(209, 77, 77, 0.55);
+      box-shadow: 0 0 8px rgba(209, 77, 77, 0.2);
+    }
+    .tl-rail-content {
+      min-width: 0;
+    }
     .tl-exec-latency {
       margin-bottom: var(--space-4);
     }

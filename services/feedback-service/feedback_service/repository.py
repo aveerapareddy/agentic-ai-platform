@@ -14,6 +14,7 @@ from common_schemas import (
     PatternDetection,
 )
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session, sessionmaker
 
 from feedback_service.models import ExecutionFeedbackRow, OperatorFeedbackRow
@@ -141,13 +142,45 @@ def _row_to_ef(row: ExecutionFeedbackRow) -> ExecutionFeedback:
     )
 
 
+def _op_row_values(row: OperatorFeedbackRow) -> dict[str, Any]:
+    return {
+        "feedback_record_id": row.feedback_record_id,
+        "execution_id": row.execution_id,
+        "source": row.source,
+        "labels": row.labels,
+        "detail": row.detail,
+        "source_scope": row.source_scope,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+    }
+
+
+def _ef_row_values(row: ExecutionFeedbackRow) -> dict[str, Any]:
+    return {
+        "feedback_id": row.feedback_id,
+        "execution_id": row.execution_id,
+        "source_scope": row.source_scope,
+        "failure_types": row.failure_types,
+        "patterns_detected": row.patterns_detected,
+        "improvement_suggestions": row.improvement_suggestions,
+        "advisory_confidence": row.advisory_confidence,
+        "created_at": row.created_at,
+    }
+
+
 class PostgresFeedbackRepository:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._session_factory = session_factory
 
     def save_operator_feedback(self, record: OperatorFeedback) -> None:
+        row = _op_to_row(record)
+        vals = _op_row_values(row)
+        stmt = pg_insert(OperatorFeedbackRow).values(**vals).on_conflict_do_update(
+            index_elements=["feedback_record_id"],
+            set_={k: vals[k] for k in vals if k != "feedback_record_id"},
+        )
         with self._session_factory() as session:
-            session.merge(_op_to_row(record))
+            session.execute(stmt)
             session.commit()
 
     def get_operator_feedback(self, feedback_record_id: UUID) -> OperatorFeedback | None:
@@ -166,8 +199,14 @@ class PostgresFeedbackRepository:
             return [_row_to_op(r) for r in rows]
 
     def save_execution_feedback(self, record: ExecutionFeedback) -> None:
+        row = _ef_to_row(record)
+        vals = _ef_row_values(row)
+        stmt = pg_insert(ExecutionFeedbackRow).values(**vals).on_conflict_do_update(
+            index_elements=["feedback_id"],
+            set_={k: vals[k] for k in vals if k != "feedback_id"},
+        )
         with self._session_factory() as session:
-            session.merge(_ef_to_row(record))
+            session.execute(stmt)
             session.commit()
 
     def get_execution_feedback(self, feedback_id: UUID) -> ExecutionFeedback | None:
@@ -195,5 +234,6 @@ class PostgresFeedbackRepository:
             stmt = select(ExecutionFeedbackRow).order_by(ExecutionFeedbackRow.created_at.desc())
             if execution_ids is not None:
                 stmt = stmt.where(ExecutionFeedbackRow.execution_id.in_(execution_ids))
-            rows = session.scalars(stmt).limit(max(1, limit)).all()
+            stmt = stmt.limit(max(1, limit))
+            rows = session.scalars(stmt).all()
             return [_row_to_ef(r) for r in rows]

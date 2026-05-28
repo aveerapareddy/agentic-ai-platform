@@ -46,11 +46,11 @@ describe('InsightsPage', () => {
     fixture = TestBed.createComponent(InsightsPage);
   });
 
-  it('renders Mukti insights title and failure types section', () => {
+  it('renders Mukti insights title and issue surfaces', () => {
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.textContent).toContain('Mukti cross-execution insights');
-    expect(el.textContent).toContain('Top failure types');
+    expect(el.textContent).toContain('Mukti Insights');
+    expect(el.textContent).toContain('Issue surfaces');
     expect(el.textContent).toContain('step_failure');
     expect(api.getMuktiInsights).toHaveBeenCalled();
   });

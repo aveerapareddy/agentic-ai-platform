@@ -39,12 +39,11 @@ def _context(*, policy_scope: str = "default") -> dict[str, Any]:
 
 
 def _postgres_seed_mode() -> bool:
-    raw = os.environ.get("GATEWAY_USE_POSTGRES", "")
-    if raw.lower() in ("1", "true", "yes"):
+    """True when seed can share the gateway DB (docker-seed always has a postgresql DATABASE_URL)."""
+    db_url = os.environ.get("DATABASE_URL") or os.environ.get("ORCHESTRATOR_DATABASE_URL") or ""
+    if db_url.startswith("postgresql"):
         return True
-    if raw.lower() in ("0", "false", "no"):
-        return False
-    return bool(os.environ.get("DATABASE_URL") or os.environ.get("ORCHESTRATOR_DATABASE_URL"))
+    return os.environ.get("GATEWAY_USE_POSTGRES", "").lower() in ("1", "true", "yes")
 
 
 def run_mukti_pipeline(

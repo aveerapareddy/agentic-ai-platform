@@ -2,17 +2,19 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import type { ExecutionListItem } from '../../core/models/execution.models';
 import { executionStatusModifier } from '../../core/ui/status-util';
 import { formatIsoShort, shortExecutionId } from '../../core/ui/format-util';
+import { workflowBadgeClass, workflowLabel } from '../../core/ui/workflow-util';
 
 @Component({
   selector: 'app-execution-list',
   standalone: true,
   template: `
     @if (items.length === 0) {
-      <div class="oc-panel">
-        <p class="oc-meta oc-empty">No executions match the current filters.</p>
+      <div class="oc-empty-state">
+        <p class="oc-empty-state__title">No executions</p>
+        <p class="oc-meta">Adjust filters or refresh after new runs complete on api-gateway.</p>
       </div>
     } @else {
-      <div class="oc-table-wrap">
+      <div class="oc-table-wrap oc-exec-table">
         <table class="oc-table">
           <thead>
             <tr>
@@ -20,27 +22,38 @@ import { formatIsoShort, shortExecutionId } from '../../core/ui/format-util';
               <th class="col-wf" scope="col">Workflow</th>
               <th class="col-st" scope="col">Status</th>
               <th class="col-ts" scope="col">Created</th>
+              <th class="col-act" scope="col"><span class="sr-only">Open</span></th>
             </tr>
           </thead>
           <tbody>
             @for (row of items; track row.execution_id) {
               <tr
+                class="oc-exec-row"
                 tabindex="0"
+                [attr.data-preview]="previewText(row)"
                 (click)="select.emit(row.execution_id)"
                 (keyup.enter)="select.emit(row.execution_id)"
                 (keyup.space)="$event.preventDefault(); select.emit(row.execution_id)"
               >
-                <td class="col-id mono" [title]="row.execution_id">{{ shortId(row.execution_id) }}</td>
-                <td class="col-wf oc-data">{{ row.workflow_type }}</td>
+                <td class="col-id">
+                  <span class="mono oc-exec-row__id" [title]="row.execution_id">{{ shortId(row.execution_id) }}</span>
+                </td>
+                <td class="col-wf">
+                  <span [class]="wfClass(row.workflow_type)" [title]="row.workflow_type">{{
+                    wfLabel(row.workflow_type)
+                  }}</span>
+                </td>
                 <td class="col-st">
                   <span class="status-badge {{ statusClass(row.status) }}">{{ row.status }}</span>
                 </td>
-                <td class="col-ts">{{ formatTs(row.created_at) }}</td>
+                <td class="col-ts oc-meta">{{ formatTs(row.created_at) }}</td>
+                <td class="col-act oc-meta" aria-hidden="true">→</td>
               </tr>
             }
           </tbody>
         </table>
       </div>
+      <p class="oc-meta oc-table-foot">{{ items.length }} row(s) · click to open detail</p>
     }
   `,
   styles: ``,
@@ -52,4 +65,10 @@ export class ExecutionListComponent {
   shortId = shortExecutionId;
   formatTs = formatIsoShort;
   statusClass = executionStatusModifier;
+  wfClass = workflowBadgeClass;
+  wfLabel = workflowLabel;
+
+  previewText(row: ExecutionListItem): string {
+    return `${row.workflow_type} · ${row.status} · ${row.created_at}`;
+  }
 }
