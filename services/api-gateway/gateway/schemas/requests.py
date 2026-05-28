@@ -41,3 +41,7 @@ class ReplayExecutionRequest(BaseModel):
     plan_id: UUID | None = None
     environment_target: str = "sandbox"
     label: str | None = None
+    reason: str | None = None
+    requested_by: str | None = None
+    input_overrides: dict[str, Any] | None = None
+    start_execution: bool = False

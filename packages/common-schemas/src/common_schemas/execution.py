@@ -113,6 +113,10 @@ class ReplayMode(StrEnum):
     INVESTIGATIVE = "investigative"
 
 
+# Reserved execution.input key for replay lineage until a dedicated replay table exists.
+REPLAY_PROVENANCE_INPUT_KEY = "__replay_provenance__"
+
+
 class ReplayRequest(BaseModel):
     """Request to start a replay run anchored on a source execution."""
 
@@ -135,6 +139,10 @@ class ReplayRequest(BaseModel):
         default=None,
         description="Investigative-only plan fragment or hints; ignored or rejected for exact mode per policy.",
     )
+    input_overrides: dict[str, Any] | None = Field(
+        default=None,
+        description="Investigative-only input field overrides applied on top of source input.",
+    )
     reason: str | None = Field(default=None, description="Audit justification for replay.")
     requested_by: str | None = Field(
         default=None,
@@ -145,3 +153,39 @@ class ReplayRequest(BaseModel):
         description="Scheduling hint for the replay execution; platform default if omitted.",
     )
     label: str | None = Field(default=None, description="Operator or audit label for the replay run.")
+    start_execution: bool = Field(
+        default=False,
+        description="When true, run the orchestrator loop on the child execution after creation.",
+    )
+
+
+class ReplayProvenance(BaseModel):
+    """Auditable lineage for a replay child execution (also stored under REPLAY_PROVENANCE_INPUT_KEY)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source_execution_id: ExecutionId
+    replay_mode: ReplayMode
+    requested_by: str | None = None
+    reason: str | None = None
+    label: str | None = None
+    input_overrides: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Overrides applied for investigative replay; empty for exact.",
+    )
+    anchor_plan_id: PlanId | None = None
+    environment_target: str
+    created_execution_id: ExecutionId
+    created_at: datetime
+
+
+class ReplayCreatedResponse(BaseModel):
+    """API response after replay child execution is created."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    replay_execution_id: ExecutionId
+    source_execution_id: ExecutionId
+    status: str = Field(description="Child execution status after create (and optional start).")
+    replay_mode: ReplayMode
+    provenance: ReplayProvenance

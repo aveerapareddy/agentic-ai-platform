@@ -7,7 +7,10 @@ from .execution import (
     ExecutionStatus,
     ExecutionSummary,
     ExecutionTraceReference,
+    REPLAY_PROVENANCE_INPUT_KEY,
+    ReplayCreatedResponse,
     ReplayMode,
+    ReplayProvenance,
     ReplayRequest,
 )
 from .feedback import (
@@ -32,6 +35,12 @@ from .ids import (
 )
 from .knowledge import EvidenceChunk, RetrievalRequest, RetrievalResponse
 from .mukti_input import MuktiAnalysisInput, StepRunRecord
+from .replay_diff import (
+    ReplayDiffCategory,
+    ReplayDiffItem,
+    ReplayDiffSeverity,
+    ReplayDiffSummary,
+)
 from .mukti_insights import (
     CrossExecutionInsight,
     InsightCategory,
@@ -116,7 +125,14 @@ __all__ = [
     "PolicyDecision",
     "PolicyEvaluation",
     "PolicyEvaluationId",
+    "REPLAY_PROVENANCE_INPUT_KEY",
+    "ReplayCreatedResponse",
+    "ReplayDiffCategory",
+    "ReplayDiffItem",
+    "ReplayDiffSeverity",
+    "ReplayDiffSummary",
     "ReplayMode",
+    "ReplayProvenance",
     "ReplayRequest",
     "RegisteredTool",
     "ResultId",

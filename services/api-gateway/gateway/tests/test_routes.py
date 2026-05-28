@@ -147,9 +147,27 @@ def test_replay_shape() -> None:
         assert rep.status_code == 202, rep.text
         body = rep.json()
         assert body["source_execution_id"] == src
-        assert body["mode"] == "exact"
+        assert body["replay_mode"] == "exact"
         assert body["status"] == "created"
         assert "replay_execution_id" in body
+        assert "provenance" in body
+        assert body["provenance"]["source_execution_id"] == src
+        assert body["provenance"]["label"] == "unit"
+
+        child = c.get(f"/v1/executions/{body['replay_execution_id']}")
+        assert child.status_code == 200
+        child_body = child.json()
+        assert child_body.get("parent_execution_id") == src
+
+        diff = c.get(f"/v1/executions/{src}/replay-diff/{body['replay_execution_id']}")
+        assert diff.status_code == 200, diff.text
+        diff_body = diff.json()
+        assert diff_body["source_execution_id"] == src
+        assert diff_body["replay_execution_id"] == body["replay_execution_id"]
+        assert diff_body["linked_to_source"] is True
+        assert "total_differences" in diff_body
+        assert "items" in diff_body
+        assert isinstance(diff_body["items"], list)
 
 
 def test_get_execution_not_found() -> None:

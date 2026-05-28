@@ -97,6 +97,13 @@ class Repository(Protocol):
 
     def list_approvals_for_execution(self, execution_id: UUID) -> list[Approval]: ...
 
+    def list_executions_by_parent(
+        self,
+        *,
+        parent_execution_id: UUID,
+        limit: int = 50,
+    ) -> list[Execution]: ...
+
 
 class InMemoryRepository:
     """Volatile store; structurally aligned with relational persistence."""
@@ -231,6 +238,16 @@ class InMemoryRepository:
             (a for a in self._approvals.values() if a.execution_id == execution_id),
             key=lambda a: a.decided_at,
         )
+
+    def list_executions_by_parent(
+        self,
+        *,
+        parent_execution_id: UUID,
+        limit: int = 50,
+    ) -> list[Execution]:
+        rows = [e for e in self._executions.values() if e.parent_execution_id == parent_execution_id]
+        rows.sort(key=lambda e: e.created_at, reverse=True)
+        return rows[: max(1, min(limit, 500))]
 
 
 # 001_initial_schema.sql has no execution_mode column; reserve a JSONB key inside executions.input for round-trip.
@@ -826,3 +843,20 @@ class PostgresRepository:
             )
             rows = session.scalars(stmt).all()
             return [_row_to_approval(r) for r in rows]
+
+    def list_executions_by_parent(
+        self,
+        *,
+        parent_execution_id: UUID,
+        limit: int = 50,
+    ) -> list[Execution]:
+        lim = max(1, min(limit, 500))
+        with self._session_factory() as session:
+            stmt = (
+                select(ExecutionRow)
+                .where(ExecutionRow.parent_execution_id == parent_execution_id)
+                .order_by(ExecutionRow.created_at.desc())
+                .limit(lim)
+            )
+            rows = session.scalars(stmt).all()
+            return [_row_to_execution(r) for r in rows]

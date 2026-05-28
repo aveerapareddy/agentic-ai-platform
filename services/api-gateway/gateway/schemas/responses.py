@@ -95,10 +95,4 @@ class FeedbackCreatedResponse(BaseModel):
     created_at: datetime
 
 
-class ReplayAcceptedResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    replay_execution_id: UUID
-    source_execution_id: UUID
-    status: str
-    mode: str
+# ReplayCreatedResponse from common_schemas is the canonical replay response shape.

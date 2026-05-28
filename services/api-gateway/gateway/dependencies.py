@@ -14,11 +14,14 @@ from gateway.services.evaluation_facade import EvaluationFacade
 from gateway.services.execution_facade import ExecutionFacade
 from gateway.services.feedback_facade import FeedbackFacade
 from gateway.services.mukti_facade import MuktiFacade
+from gateway.services.replay_diff_facade import ReplayDiffFacade
 
 ensure_platform_paths()
 
 from app.adapters.repository import InMemoryRepository
 from app.services.execution_service import ExecutionService
+from app.services.replay_diff_service import ReplayDiffService
+from app.services.replay_service import ReplayService
 from evaluation_engine import EvaluationService
 from feedback_service.service import FeedbackService
 from mukti_agent.service import MuktiService
@@ -32,6 +35,8 @@ class GatewayState:
     feedback_service: FeedbackService
     evaluation_service: EvaluationService
     mukti_service: MuktiService
+    replay_service: ReplayService
+    replay_diff_service: ReplayDiffService
     idempotency: dict[tuple[str, str, str], UUID] = field(default_factory=dict)
 
 
@@ -42,6 +47,8 @@ def build_gateway_state(settings: Settings | None = None) -> GatewayState:
     feedback_service = FeedbackService()
     evaluation_service = EvaluationService(repo)
     mukti_service = MuktiService()
+    replay_service = ReplayService(repo, execution_service)
+    replay_diff_service = ReplayDiffService(repo)
     return GatewayState(
         settings=settings,
         repository=repo,
@@ -49,6 +56,8 @@ def build_gateway_state(settings: Settings | None = None) -> GatewayState:
         feedback_service=feedback_service,
         evaluation_service=evaluation_service,
         mukti_service=mukti_service,
+        replay_service=replay_service,
+        replay_diff_service=replay_diff_service,
     )
 
 
@@ -62,6 +71,7 @@ def get_execution_facade(state: Annotated[GatewayState, Depends(get_state)]) -> 
         repository=state.repository,
         idempotency_store=state.idempotency,
         settings=state.settings,
+        replay_service=state.replay_service,
     )
 
 
@@ -90,3 +100,10 @@ ExecutionFacadeDep = Annotated[ExecutionFacade, Depends(get_execution_facade)]
 FeedbackFacadeDep = Annotated[FeedbackFacade, Depends(get_feedback_facade)]
 EvaluationFacadeDep = Annotated[EvaluationFacade, Depends(get_evaluation_facade)]
 MuktiFacadeDep = Annotated[MuktiFacade, Depends(get_mukti_facade)]
+
+
+def get_replay_diff_facade(state: Annotated[GatewayState, Depends(get_state)]) -> ReplayDiffFacade:
+    return ReplayDiffFacade(replay_diff_service=state.replay_diff_service)
+
+
+ReplayDiffFacadeDep = Annotated[ReplayDiffFacade, Depends(get_replay_diff_facade)]

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -14,12 +13,15 @@ ensure_platform_paths()
 from app.adapters.repository import Repository
 from app.runtime.orchestrator import OrchestrationError
 from app.services.execution_service import ExecutionService
+from app.services.replay_service import ReplayNotFoundError, ReplayService, ReplayValidationError
 from common_schemas import (
     ApprovalDecision,
     Execution,
     ExecutionContext,
     ExecutionStatus,
+    ReplayCreatedResponse,
     ReplayMode,
+    ReplayRequest,
 )
 from common_schemas.policy import Approval
 from common_schemas.tooling import ToolCall
@@ -43,11 +45,13 @@ class ExecutionFacade:
         repository: Repository,
         idempotency_store: dict[tuple[str, str, str], UUID],
         settings: Settings,
+        replay_service: ReplayService | None = None,
     ) -> None:
         self._svc = execution_service
         self._repo = repository
         self._idem = idempotency_store
         self._settings = settings
+        self._replay = replay_service or ReplayService(repository, execution_service)
 
     def create_execution(
         self,
@@ -216,41 +220,31 @@ class ExecutionFacade:
         plan_id: UUID | None,
         environment_target: str,
         label: str | None,
-    ) -> Execution:
-        """Stub: new CREATED execution linked via parent_execution_id; does not auto-run."""
+        reason: str | None = None,
+        requested_by: str | None = None,
+        input_overrides: dict[str, Any] | None = None,
+        start_execution: bool = False,
+    ) -> ReplayCreatedResponse:
+        """Delegate to orchestrator ReplayService; does not construct replay in the gateway."""
         try:
             rmode = ReplayMode(mode)
         except ValueError as e:
             raise ValueError(f"invalid replay mode: {mode}") from e
 
-        src = self._repo.get_execution(source_execution_id)
-        if src is None:
-            raise KeyError(source_execution_id)
-        ctx = self._repo.get_context(src.execution_context_id)
-        if ctx is None:
-            raise KeyError("execution context missing")
-
-        input_copy = dict(src.input)
-        meta = {
-            "source_execution_id": str(source_execution_id),
-            "replay_mode": rmode.value,
-            "environment_target": environment_target,
-            "label": label,
-            "anchor_plan_id": str(plan_id) if plan_id else None,
-        }
-        input_copy["_gateway_replay_stub"] = meta
-
-        rid = f"replay-{source_execution_id}-{datetime.now(timezone.utc).isoformat()}"
-        child = self._svc.create_execution(
-            workflow_type=src.workflow_type,
-            input_payload=input_copy,
-            tenant_id=ctx.tenant_id,
-            request_id=rid,
-            environment=environment_target or ctx.environment,
-            policy_scope=ctx.policy_scope,
-            principal_id=ctx.principal_id,
-            permissions_scope=dict(ctx.permissions_scope),
-            parent_execution_id=source_execution_id,
-            feature_flags=ctx.feature_flags,
+        request = ReplayRequest(
+            source_execution_id=source_execution_id,
+            replay_mode=rmode,
+            environment_target=environment_target,
+            anchor_plan_id=plan_id,
+            label=label,
+            reason=reason,
+            requested_by=requested_by,
+            input_overrides=input_overrides,
+            start_execution=start_execution,
         )
-        return child
+        try:
+            return self._replay.create_replay(request)
+        except ReplayNotFoundError as e:
+            raise KeyError(str(e)) from e
+        except ReplayValidationError as e:
+            raise ValueError(str(e)) from e

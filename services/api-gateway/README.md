@@ -16,7 +16,8 @@ Runnable code lives under **`gateway/`** (not `app/`) because the orchestrator a
 | `GET` | `/v1/executions/{execution_id}/trace` | Materialized trace from stored steps, results, tool calls, policy evaluations, approvals, timeline. |
 | `POST` | `/v1/executions/{execution_id}/approvals` | Delegates to `ExecutionEngine.submit_approval` (orchestrator). |
 | `POST` | `/v1/executions/{execution_id}/feedback` | Delegates to `FeedbackService.submit_operator_feedback`. |
-| `POST` | `/v1/executions/{execution_id}/replay` | **Stub**: creates a new `CREATED` execution with `parent_execution_id`, copies input + `_gateway_replay_stub` metadata; does **not** auto-run or enforce replay policy (future work). |
+| `POST` | `/v1/executions/{execution_id}/replay` | Delegates to orchestrator `ReplayService`: child execution, `parent_execution_id`, provenance under `__replay_provenance__`, `replay_created` trace event; optional `start_execution`. |
+| `GET` | `/v1/executions/{execution_id}/replay-diff/{replay_execution_id}` | Delegates to `ReplayDiffService`: structured `ReplayDiffSummary` (read-only comparison of stored artifacts). |
 
 ## Supported `workflow_type` values (gateway allowlist)
 
@@ -50,9 +51,9 @@ python -m pytest gateway/tests -q
 - Full authentication / authorization (placeholder hook only)
 - Metrics / evaluation-engine routes
 - Durable idempotency store (in-memory per process only)
-- Production replay policy, sandbox routing, and child-run execution semantics beyond the stub above
+- Dedicated replay metadata table (provenance currently in `execution.input`); replay diff UI
 - Separate HTTP orchestrator process (in-process wiring only)
 
 ## Orchestrator additions
 
-`Repository` now includes `list_executions` and `list_approvals_for_execution` so the gateway can list and build trace projections without bypassing the persistence port. `ExecutionService.create_execution` accepts optional `parent_execution_id` and passes `feature_flags` through for replay stub context.
+`Repository` includes `list_executions`, `list_executions_by_parent`, and `list_approvals_for_execution`. Replay construction is owned by `app.services.replay_service.ReplayService`; comparison by `app.services.replay_diff_service.ReplayDiffService` (not the gateway).
