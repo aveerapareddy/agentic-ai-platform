@@ -32,6 +32,8 @@ pythonpath = [
     ".",
     "../orchestrator",
     "../../packages/common-schemas/src",
+    "../../packages/observability/src",
+    "../model-runtime",
     "../policy-engine",
     "../tool-runtime",
     "../knowledge-service",

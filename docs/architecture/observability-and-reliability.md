@@ -28,7 +28,17 @@ Stored **inputs**, **plan** revisions, **step** graph, **tool_call** inputs/outp
 
 ## Logging, metrics, distributed tracing
 
-**Not implemented** as standardized pipelines in this repository: no mandatory OpenTelemetry wiring, no SLO dashboards checked in. Operators should attach platform logging/metrics at deployment. Semantics for what to log are implied by trace events and repository writes.
+**Operational layer (`packages/observability`):**
+
+- Structured JSON events to stdout (`model_request`, `model_retry`, `tool_invoke`, `replay_created`, `model_fallback`, etc.) with `execution_id` / `step_id` — **no raw prompts**.
+- In-memory counters and latency totals; Prometheus text via **`GET /metrics`** on api-gateway (not `/v1/metrics`, which serves evaluation aggregates).
+- OpenTelemetry-lite span helpers (`observability.span`) without an OTel SDK dependency.
+
+**Model-runtime** records token usage and latency on `ModelInvocationTelemetry` (trace `model_reasoning.invocation` and structured output metadata). Retries are bounded and classified (transient vs schema validation).
+
+**Business / evaluation metrics** remain in `evaluation-engine` and `GET /v1/metrics` — trace-grounded, not operational counters.
+
+Distributed backends (Datadog, Grafana Cloud, etc.) are deployment choices; this repo does not ship dashboards or SLO gates.
 
 ## Runbooks and on-call
 

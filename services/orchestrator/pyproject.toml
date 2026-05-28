@@ -32,6 +32,7 @@ testpaths = ["app/tests"]
 pythonpath = [
     ".",
     "../../packages/common-schemas/src",
+    "../../packages/observability/src",
     "../policy-engine",
     "../tool-runtime",
     "../knowledge-service",

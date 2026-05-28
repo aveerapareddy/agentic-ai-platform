@@ -27,6 +27,21 @@ class IncidentAnalysisModelRequest(BaseModel):
     )
 
 
+class ModelInvocationTelemetry(BaseModel):
+    """Non-authoritative inference audit fields (trace / observability only)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    latency_ms: int = Field(ge=0, default=0)
+    retry_count: int = Field(ge=0, default=0)
+    provider_type: str = Field(default="", max_length=32)
+    model_name: str = Field(default="", max_length=128)
+    input_tokens: int = Field(ge=0, default=0)
+    output_tokens: int = Field(ge=0, default=0)
+    total_tokens: int = Field(ge=0, default=0)
+    timed_out: bool = False
+
+
 class IncidentAnalysisReasoningOutput(BaseModel):
     """Structured analyze step artifact; maps to gather_analyze StepResult.output keys."""
 
@@ -36,6 +51,10 @@ class IncidentAnalysisReasoningOutput(BaseModel):
     possible_causes: list[str] = Field(default_factory=list, max_length=16)
     model_invocation_id: str = Field(max_length=128)
     provider_label: str = Field(max_length=64)
+    invocation: ModelInvocationTelemetry | None = Field(
+        default=None,
+        description="Optional provider telemetry; not used for execution state transitions.",
+    )
 
 
 class IncidentValidationModelRequest(BaseModel):
@@ -63,3 +82,7 @@ class IncidentValidationReasoningOutput(BaseModel):
     digest: str = Field(default="", max_length=64)
     model_invocation_id: str = Field(max_length=128)
     provider_label: str = Field(max_length=64)
+    invocation: ModelInvocationTelemetry | None = Field(
+        default=None,
+        description="Optional provider telemetry; not used for execution state transitions.",
+    )

@@ -371,6 +371,7 @@ class ExecutionEngine:
         provider: str | None = None,
         error_class: str | None = None,
         error_message: str | None = None,
+        invocation: dict[str, Any] | None = None,
     ) -> None:
         ex = self._repo.get_execution(execution_id)
         if ex is None:
@@ -387,6 +388,8 @@ class ExecutionEngine:
             detail["error_class"] = error_class
         if error_message:
             detail["error_message"] = error_message[:500]
+        if invocation:
+            detail["invocation"] = invocation
         ex = _append_timeline(ex, "model_reasoning", detail, now)
         self._repo.update_execution(ex)
 
@@ -498,7 +501,9 @@ class ExecutionEngine:
                     incident_id=incident_id,
                     execution_input_excerpt=excerpt,
                 )
-                out = self._model_runtime.analyze_incident(req)
+                call = self._model_runtime.analyze_incident(req)
+                out = call.output
+                inv = out.invocation.model_dump() if out.invocation is not None else None
                 self._trace_model_reasoning(
                     step.execution_id,
                     step,
@@ -506,6 +511,7 @@ class ExecutionEngine:
                     task="analyze_incident",
                     now=now,
                     provider=out.provider_label,
+                    invocation=inv,
                 )
                 return self._step_result_from_analyze_model(step, now, out)
             if name == "validate_incident":
@@ -520,7 +526,9 @@ class ExecutionEngine:
                     prior_incident_summary_excerpt=str(analyze_out.get("incident_summary", ""))[:2000],
                     evidence_summary_excerpt=str(gather_out.get("evidence_summary", ""))[:2000],
                 )
-                vout = self._model_runtime.validate_incident(req)
+                vcall = self._model_runtime.validate_incident(req)
+                vout = vcall.output
+                vinv = vout.invocation.model_dump() if vout.invocation is not None else None
                 self._trace_model_reasoning(
                     step.execution_id,
                     step,
@@ -528,9 +536,26 @@ class ExecutionEngine:
                     task="validate_incident",
                     now=now,
                     provider=vout.provider_label,
+                    invocation=vinv,
                 )
                 return self._step_result_from_validate_model(step, now, vout)
         except Exception as exc:  # noqa: BLE001 — normalize to fallback + trace
+            try:
+                from observability import emit_event, get_registry
+
+                get_registry().inc(
+                    "model_fallback_total",
+                    labels={"task": name if name in ("analyze_incident", "validate_incident") else "unknown"},
+                )
+                emit_event(
+                    "model_fallback",
+                    execution_id=str(step.execution_id),
+                    step_id=str(step.step_id),
+                    task=name,
+                    error_class=type(exc).__name__,
+                )
+            except ImportError:
+                pass
             self._trace_model_reasoning(
                 step.execution_id,
                 step,

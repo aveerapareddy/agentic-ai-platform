@@ -4,23 +4,43 @@ from __future__ import annotations
 
 from common_schemas import (
     IncidentAnalysisModelRequest,
-    IncidentAnalysisReasoningOutput,
     IncidentValidationModelRequest,
-    IncidentValidationReasoningOutput,
 )
 
-from model_runtime.client import StructuredReasoningClient
-from model_runtime.providers import FakeStructuredProvider
+from model_runtime.config import ModelRuntimeConfig, load_config_from_env
+from model_runtime.providers.factory import build_provider
+from model_runtime.resilient import ResilientStructuredProvider
+from model_runtime.result import ReasoningCallResult
 
 
 class ModelRuntimeService:
-    """Owns model calls only; orchestrator coordinates when steps run (constitution §8.2, §8.4)."""
+    """Owns bounded model calls only; orchestrator coordinates when steps run."""
 
-    def __init__(self, client: StructuredReasoningClient | None = None) -> None:
-        self._client: StructuredReasoningClient = client or FakeStructuredProvider()
+    def __init__(
+        self,
+        client: object | None = None,
+        *,
+        config: ModelRuntimeConfig | None = None,
+    ) -> None:
+        cfg = config or load_config_from_env()
+        inner = client or build_provider(cfg)
+        self._client = (
+            inner if isinstance(inner, ResilientStructuredProvider) else ResilientStructuredProvider(inner, cfg)
+        )
+        self._config = cfg
 
-    def analyze_incident(self, request: IncidentAnalysisModelRequest) -> IncidentAnalysisReasoningOutput:
+    @property
+    def config(self) -> ModelRuntimeConfig:
+        return self._config
+
+    def analyze_incident(
+        self,
+        request: IncidentAnalysisModelRequest,
+    ) -> ReasoningCallResult:
         return self._client.analyze_incident(request)
 
-    def validate_incident(self, request: IncidentValidationModelRequest) -> IncidentValidationReasoningOutput:
+    def validate_incident(
+        self,
+        request: IncidentValidationModelRequest,
+    ) -> ReasoningCallResult:
         return self._client.validate_incident(request)

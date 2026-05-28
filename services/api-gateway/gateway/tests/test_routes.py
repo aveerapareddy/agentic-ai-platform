@@ -271,3 +271,15 @@ def test_get_mukti_insight_by_id_not_found() -> None:
             params={"tenant_id": "t-gateway"},
         )
         assert r.status_code == 404
+
+
+def test_operational_metrics_and_runtime_health() -> None:
+    with _gateway() as (c, _app):
+        m = c.get("/metrics")
+        assert m.status_code == 200
+        assert "text/plain" in m.headers.get("content-type", "")
+        h = c.get("/health/runtime")
+        assert h.status_code == 200
+        body = h.json()
+        assert body["status"] == "ok"
+        assert "model_provider" in body

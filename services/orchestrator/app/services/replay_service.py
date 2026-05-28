@@ -149,6 +149,21 @@ class ReplayService:
         child = child.model_copy(update={"input": replay_input})
         child = _append_replay_created_event(child, provenance=provenance, now=ts)
         self._repo.update_execution(child)
+        try:
+            from observability import emit_event, get_registry
+
+            get_registry().inc(
+                "replay_created_total",
+                labels={"mode": request.replay_mode.value},
+            )
+            emit_event(
+                "replay_created",
+                source_execution_id=str(source_id),
+                replay_execution_id=str(child.execution_id),
+                replay_mode=request.replay_mode.value,
+            )
+        except ImportError:
+            pass
 
         if request.start_execution:
             child = self._executions.start_execution(child.execution_id)

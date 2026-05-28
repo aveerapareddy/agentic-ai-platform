@@ -6,6 +6,15 @@ Thin **HTTP ingress** for the platform: validates requests, maps JSON to orchest
 
 Runnable code lives under **`gateway/`** (not `app/`) because the orchestrator already owns the top-level `app` package. A stub `app/README.md` notes this for readers expecting `services/api-gateway/app/`.
 
+## Operational routes (not `/v1`)
+
+| Method | Path | Behavior |
+|--------|------|----------|
+| `GET` | `/metrics` | Prometheus text from in-memory operational registry (`platform-observability`). |
+| `GET` | `/health/runtime` | Lightweight runtime health including configured `model_provider`. |
+
+Business evaluation aggregates remain under **`GET /v1/metrics`**.
+
 ## Implemented `/v1` routes
 
 | Method | Path | Behavior |

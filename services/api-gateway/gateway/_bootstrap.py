@@ -17,10 +17,11 @@ def ensure_platform_paths() -> None:
     repo_root = services_root.parent
     ordered = [
         repo_root / "packages" / "common-schemas" / "src",
+        repo_root / "packages" / "observability" / "src",
+        services_root / "model-runtime",
         services_root / "policy-engine",
         services_root / "tool-runtime",
         services_root / "knowledge-service",
-        services_root / "model-runtime",
         services_root / "feedback-service",
         services_root / "mukti-agent",
         services_root / "evaluation-engine",

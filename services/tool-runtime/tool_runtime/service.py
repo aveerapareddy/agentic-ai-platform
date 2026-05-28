@@ -18,4 +18,22 @@ class ToolRuntimeService:
 
     def invoke(self, request: ToolInvokeRequest, *, now: datetime | None = None) -> ToolCall:
         ts = now or datetime.now(timezone.utc)
-        return self._executor.execute(request, now=ts)
+        try:
+            from observability import emit_event, get_registry, observe_latency_ms
+
+            emit_event(
+                "tool_invoke",
+                execution_id=str(request.execution_id),
+                step_id=str(request.step_id),
+                tool_name=request.tool_name,
+            )
+            import time
+
+            started = time.perf_counter()
+            tc = self._executor.execute(request, now=ts)
+            latency_ms = float(tc.latency_ms or int((time.perf_counter() - started) * 1000))
+            observe_latency_ms("tool_invoke", latency_ms, labels={"tool": request.tool_name})
+            get_registry().inc("tool_invocations_total", labels={"tool": request.tool_name, "status": tc.status.value})
+            return tc
+        except ImportError:
+            return self._executor.execute(request, now=ts)

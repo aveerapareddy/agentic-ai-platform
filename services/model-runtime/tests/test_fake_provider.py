@@ -15,7 +15,7 @@ from model_runtime.service import ModelRuntimeService
 
 def test_fake_analyze_structure() -> None:
     p = FakeStructuredProvider()
-    out = p.analyze_incident(
+    result = p.analyze_incident(
         IncidentAnalysisModelRequest(
             execution_id=uuid4(),
             step_id=uuid4(),
@@ -23,15 +23,17 @@ def test_fake_analyze_structure() -> None:
             execution_input_excerpt={"severity": "high"},
         ),
     )
+    out = result.output
     assert "inc-99" in out.incident_summary
     assert len(out.possible_causes) == 3
     assert out.provider_label == "fake_structured_v1"
     assert out.model_invocation_id
+    assert result.telemetry.provider_type == "fake"
 
 
 def test_fake_validate_picks_from_prior_causes() -> None:
     p = FakeStructuredProvider()
-    out = p.validate_incident(
+    result = p.validate_incident(
         IncidentValidationModelRequest(
             execution_id=uuid4(),
             step_id=uuid4(),
@@ -40,6 +42,7 @@ def test_fake_validate_picks_from_prior_causes() -> None:
             evidence_summary_excerpt="metrics spike",
         ),
     )
+    out = result.output
     assert out.likely_cause in ("a", "b")
     assert out.validation_status == "passed"
     assert 0.0 <= out.confidence_score <= 1.0
@@ -48,10 +51,10 @@ def test_fake_validate_picks_from_prior_causes() -> None:
 
 def test_service_defaults_to_fake() -> None:
     svc = ModelRuntimeService()
-    out = svc.analyze_incident(
+    result = svc.analyze_incident(
         IncidentAnalysisModelRequest(execution_id=uuid4(), step_id=uuid4(), incident_id="x"),
     )
-    assert out.provider_label == "fake_structured_v1"
+    assert result.output.provider_label == "fake_structured_v1"
 
 
 def test_unconfigured_http_raises() -> None:

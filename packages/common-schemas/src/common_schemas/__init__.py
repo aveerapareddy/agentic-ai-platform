@@ -55,6 +55,7 @@ from .reasoning import (
     IncidentAnalysisReasoningOutput,
     IncidentValidationModelRequest,
     IncidentValidationReasoningOutput,
+    ModelInvocationTelemetry,
 )
 from .policy import (
     ActionProposal,
