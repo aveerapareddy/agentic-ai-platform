@@ -13,6 +13,10 @@ class CreateExecutionRequest(BaseModel):
     input: dict[str, Any] = Field(default_factory=dict)
     context: dict[str, Any]
     idempotency_key: str | None = None
+    execution_mode: str | None = Field(
+        default=None,
+        description="interactive | background; defaults to background when omitted.",
+    )
 
 
 class SubmitApprovalRequest(BaseModel):

@@ -28,6 +28,15 @@ class ToolCallStatus(StrEnum):
     REJECTED_BY_POLICY = "rejected_by_policy"
 
 
+class ToolRetryPolicy(BaseModel):
+    """Bounded retry policy for transient tool failures."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    max_retries: int = Field(default=2, ge=0, le=8)
+    backoff_ms: int = Field(default=200, ge=0, le=60_000)
+
+
 class RegisteredTool(BaseModel):
     """Registration metadata for a tool in the tool-runtime registry (runtime model §3.6)."""
 
@@ -38,6 +47,8 @@ class RegisteredTool(BaseModel):
     idempotency: ToolIdempotency
     timeout_bounds_ms: int = Field(default=30_000, ge=1)
     description: str = ""
+    provider_id: str = Field(default="local", max_length=64)
+    retry_policy: ToolRetryPolicy = Field(default_factory=ToolRetryPolicy)
 
 
 class ToolInvokeRequest(BaseModel):
@@ -51,6 +62,10 @@ class ToolInvokeRequest(BaseModel):
     tool_name: str
     input: dict[str, Any] = Field(default_factory=dict)
     action_proposal_id: ActionId | None = None
+    policy_denied: bool = Field(
+        default=False,
+        description="When true, tool-runtime records REJECTED_BY_POLICY without invoking handler.",
+    )
 
 
 class ToolCallInput(RootModel[dict[str, Any]]):

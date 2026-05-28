@@ -1,4 +1,4 @@
-"""Create, fetch, and start executions (Phase 1)."""
+"""Create, fetch, start, enqueue, and cancel executions."""
 
 from __future__ import annotations
 
@@ -17,18 +17,28 @@ from common_schemas import (
 )
 
 from app.adapters.repository import Repository
-from app.runtime.orchestrator import ExecutionEngine, OrchestrationError, fail_execution
+from app.runtime.orchestrator import ExecutionEngine, OrchestrationError, cancel_execution, fail_execution
+from app.runtime.queue import InMemoryExecutionQueue
+from app.runtime.runtime_meta import mark_queued, mark_worker_started, request_cancellation_meta
 
 
 class ExecutionService:
-    """Coordinates persistence and the execution engine.
+    """Coordinates persistence, queueing, and the execution engine."""
 
-    `repository` may be InMemoryRepository, PostgresRepository, or any other `Repository` implementation.
-    """
-
-    def __init__(self, repository: Repository, engine: ExecutionEngine | None = None) -> None:
+    def __init__(
+        self,
+        repository: Repository,
+        engine: ExecutionEngine | None = None,
+        *,
+        queue: InMemoryExecutionQueue | None = None,
+    ) -> None:
         self._repo = repository
         self._engine = engine or ExecutionEngine(repository)
+        self._queue = queue or InMemoryExecutionQueue()
+
+    @property
+    def queue(self) -> InMemoryExecutionQueue:
+        return self._queue
 
     def create_execution(
         self,
@@ -97,12 +107,58 @@ class ExecutionService:
             limit=limit,
         )
 
+    def enqueue_execution(self, execution_id: UUID, *, now: datetime | None = None) -> Execution:
+        """Queue execution for worker processing (background mode)."""
+        ts = now or datetime.now(timezone.utc)
+        ex = self._repo.get_execution(execution_id)
+        if ex is None:
+            raise KeyError(execution_id)
+        ex = mark_queued(ex, at=ts)
+        self._repo.update_execution(ex)
+        depth = self._queue.enqueue(execution_id, now=ts)
+        try:
+            from observability import emit_event, get_registry
+
+            get_registry().inc("execution_enqueued_total")
+            get_registry().observe_latency_ms("execution_queue_depth", float(depth), labels={})
+            emit_event("execution_enqueued", execution_id=str(execution_id), queue_depth=depth)
+        except ImportError:
+            pass
+        return ex
+
     def start_execution(self, execution_id: UUID) -> Execution:
-        """Run the orchestration loop until a terminal execution status."""
+        """Run the orchestration loop until a terminal execution status (synchronous path)."""
         try:
             return self._engine.run_execution(execution_id)
         except OrchestrationError as e:
             return fail_execution(self._repo, execution_id, reason=str(e))
+
+    def record_worker_started(self, execution_id: UUID, *, worker_id: str, now: datetime | None = None) -> Execution:
+        ts = now or datetime.now(timezone.utc)
+        ex = self._repo.get_execution(execution_id)
+        if ex is None:
+            raise KeyError(execution_id)
+        ex = mark_worker_started(ex, worker_id=worker_id, at=ts)
+        self._repo.update_execution(ex)
+        return ex
+
+    def request_cancellation(self, execution_id: UUID, *, reason: str = "operator") -> Execution:
+        """Request cancellation; worker/orchestrator loop stops at next safe boundary."""
+        ts = datetime.now(timezone.utc)
+        ex = self._repo.get_execution(execution_id)
+        if ex is None:
+            raise KeyError(execution_id)
+        ex = request_cancellation_meta(ex, at=ts, reason=reason)
+        self._repo.update_execution(ex)
+        if ex.status in {
+            ExecutionStatus.CREATED,
+            ExecutionStatus.PLANNING,
+            ExecutionStatus.EXECUTING,
+            ExecutionStatus.VALIDATING,
+            ExecutionStatus.AWAITING_APPROVAL,
+        }:
+            return cancel_execution(self._repo, execution_id, reason=reason, now=ts)
+        return ex
 
     def submit_approval(
         self,

@@ -21,6 +21,8 @@ ensure_platform_paths()
 from app.adapters.repository import InMemoryRepository
 from app.services.execution_service import ExecutionService
 from app.services.replay_diff_service import ReplayDiffService
+from app.runtime.queue import InMemoryExecutionQueue
+from app.runtime.worker import ExecutionWorker
 from app.services.replay_service import ReplayService
 from evaluation_engine import EvaluationService
 from feedback_service.service import FeedbackService
@@ -31,7 +33,9 @@ from mukti_agent.service import MuktiService
 class GatewayState:
     settings: Settings
     repository: InMemoryRepository
+    execution_queue: InMemoryExecutionQueue
     execution_service: ExecutionService
+    execution_worker: ExecutionWorker
     feedback_service: FeedbackService
     evaluation_service: EvaluationService
     mukti_service: MuktiService
@@ -43,7 +47,9 @@ class GatewayState:
 def build_gateway_state(settings: Settings | None = None) -> GatewayState:
     settings = settings or get_settings()
     repo = InMemoryRepository()
-    execution_service = ExecutionService(repo)
+    queue = InMemoryExecutionQueue()
+    execution_service = ExecutionService(repo, queue=queue)
+    worker = ExecutionWorker(execution_service, queue)
     feedback_service = FeedbackService()
     evaluation_service = EvaluationService(repo)
     mukti_service = MuktiService()
@@ -52,7 +58,9 @@ def build_gateway_state(settings: Settings | None = None) -> GatewayState:
     return GatewayState(
         settings=settings,
         repository=repo,
+        execution_queue=queue,
         execution_service=execution_service,
+        execution_worker=worker,
         feedback_service=feedback_service,
         evaluation_service=evaluation_service,
         mukti_service=mukti_service,

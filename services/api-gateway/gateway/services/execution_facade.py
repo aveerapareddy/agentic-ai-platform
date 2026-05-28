@@ -18,6 +18,7 @@ from common_schemas import (
     ApprovalDecision,
     Execution,
     ExecutionContext,
+    ExecutionMode,
     ExecutionStatus,
     ReplayCreatedResponse,
     ReplayMode,
@@ -75,6 +76,13 @@ class ExecutionFacade:
         principal_id = context.get("principal_id")
         permissions_scope = context.get("permissions_scope")
         feature_flags = context.get("feature_flags")
+        mode_raw = context.get("execution_mode")
+        execution_mode = ExecutionMode.BACKGROUND
+        if mode_raw is not None:
+            try:
+                execution_mode = ExecutionMode(str(mode_raw))
+            except ValueError:
+                raise ValueError("execution_mode must be interactive or background") from None
 
         if idempotency_key:
             key = (str(tenant_id), workflow_type, idempotency_key)
@@ -91,6 +99,7 @@ class ExecutionFacade:
             environment=str(environment),
             policy_scope=str(policy_scope),
             principal_id=str(principal_id) if principal_id else None,
+            execution_mode=execution_mode,
             permissions_scope=permissions_scope if isinstance(permissions_scope, dict) else None,
             feature_flags=feature_flags if isinstance(feature_flags, dict) else None,
         )
@@ -100,12 +109,17 @@ class ExecutionFacade:
 
         do_start = self._settings.schedule_execution_start if schedule_start is None else schedule_start
         if do_start:
-            if start_callback is not None:
+            if self._settings.use_execution_worker_queue and execution_mode == ExecutionMode.BACKGROUND:
+                self._svc.enqueue_execution(ex.execution_id)
+            elif start_callback is not None:
                 start_callback(ex.execution_id)
             else:
                 self._svc.start_execution(ex.execution_id)
 
         return ex
+
+    def request_cancellation(self, execution_id: UUID, *, reason: str = "operator") -> Execution:
+        return self._svc.request_cancellation(execution_id, reason=reason)
 
     def get_execution(self, execution_id: UUID) -> Execution | None:
         return self._svc.get_execution(execution_id)

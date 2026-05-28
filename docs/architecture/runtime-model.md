@@ -355,7 +355,14 @@ The following rules hold across implementations; violations are defects.
 
 **Effect on output:** Failed validation blocks promotion of outputs; orchestrator may loop to additional steps (if allowed) or fail the execution. Partial or draft outputs are not externally visible unless an explicit, policy-approved “preview” channel exists. Validators are separate from agents; agents do not self-certify.
 
-## 11. Role of Mukti Agent
+## 11. Background execution and workers
+
+- **`ExecutionMode.BACKGROUND`** may enqueue an `execution_id` on an in-process FIFO queue; a **worker** thread calls `ExecutionService.start_execution`, which runs the same orchestrator loop as synchronous starts.
+- **Workers are bounded executors:** they dequeue work and invoke orchestrator entry points; they **must not** invent lifecycle transitions, bypass policy, or mutate execution state outside orchestrator methods.
+- **Cancellation** is requested via runtime metadata (`cancellation_requested` in `executions.input.__orch_runtime_meta__` until dedicated columns exist). The orchestrator checks between steps; tools may honor a `cancel_check` at invoke time.
+- **Trace continuity** is unchanged: tool calls, timeline events, and terminal status are persisted through the orchestrator path.
+
+## 12. Role of Mukti Agent
 
 Mukti operates **only post-execution** (or on snapshot batches), consuming **Traces** and optional operator labels.
 

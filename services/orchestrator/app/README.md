@@ -1,16 +1,21 @@
-# Orchestrator (Phase 1)
+# Orchestrator application package
 
-In-memory execution engine: planning, step simulation, lifecycle transitions aligned with `common-schemas` and the runtime model.
+Deterministic execution control plane: planning, step scheduling, validation, policy coordination, trace timeline.
 
-## Run locally
+## Async execution (Session C)
 
-From `services/orchestrator` (with `common-schemas` installed or on `PYTHONPATH`):
+- **`runtime/queue.py`** — `InMemoryExecutionQueue` (FIFO `execution_id` work items)
+- **`runtime/worker.py`** — `ExecutionWorker` calls `ExecutionService.start_execution` (bounded; no invented transitions)
+- **`runtime/runtime_meta.py`** — bridge metadata in `executions.input.__orch_runtime_meta__` (`queued_at`, `cancellation_requested`, `worker_id`, …)
 
-```bash
-pip install -e ../../packages/common-schemas
-export PYTHONPATH=../../packages/common-schemas/src:.
-python -m pytest app/tests -v
-python -m app.main
-```
+`ExecutionMode.BACKGROUND` + gateway `GATEWAY_USE_EXECUTION_WORKER_QUEUE=true` enqueues work; worker thread drains the queue. Synchronous `start_execution` remains for tests and direct invocation.
 
-Persistence, policy, tools, and knowledge calls are stubbed.
+## Cancellation
+
+`ExecutionService.request_cancellation` sets `cancellation_requested` and transitions to `CANCELLED` when allowed. Orchestrator loop checks between steps; tools honor `cancel_check`.
+
+## Limitations
+
+- In-memory queue (single process)
+- Not a distributed workflow engine
+- Runtime metadata bridge is temporary until dedicated DB columns

@@ -26,6 +26,9 @@ Business evaluation aggregates remain under **`GET /v1/metrics`**.
 | `POST` | `/v1/executions/{execution_id}/approvals` | Delegates to `ExecutionEngine.submit_approval` (orchestrator). |
 | `POST` | `/v1/executions/{execution_id}/feedback` | Delegates to `FeedbackService.submit_operator_feedback`. |
 | `POST` | `/v1/executions/{execution_id}/replay` | Delegates to orchestrator `ReplayService`: child execution, `parent_execution_id`, provenance under `__replay_provenance__`, `replay_created` trace event; optional `start_execution`. |
+| `POST` | `/v1/executions/{execution_id}/cancel` | Requests cancellation; orchestrator transitions to `cancelled` when allowed. |
+
+Background runs (`execution_mode: background` + `GATEWAY_USE_EXECUTION_WORKER_QUEUE=true`) enqueue work for the in-process worker instead of blocking the HTTP handler.
 | `GET` | `/v1/executions/{execution_id}/replay-diff/{replay_execution_id}` | Delegates to `ReplayDiffService`: structured `ReplayDiffSummary` (read-only comparison of stored artifacts). |
 
 ## Supported `workflow_type` values (gateway allowlist)

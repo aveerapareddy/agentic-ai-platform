@@ -13,8 +13,10 @@ class InvalidStatusTransitionError(ValueError):
 _EXECUTION_ALLOWED: set[tuple[ExecutionStatus, ExecutionStatus]] = {
     (ExecutionStatus.CREATED, ExecutionStatus.PLANNING),
     (ExecutionStatus.CREATED, ExecutionStatus.FAILED),
+    (ExecutionStatus.CREATED, ExecutionStatus.CANCELLED),
     (ExecutionStatus.PLANNING, ExecutionStatus.EXECUTING),
     (ExecutionStatus.PLANNING, ExecutionStatus.FAILED),
+    (ExecutionStatus.PLANNING, ExecutionStatus.CANCELLED),
     (ExecutionStatus.EXECUTING, ExecutionStatus.VALIDATING),
     (ExecutionStatus.EXECUTING, ExecutionStatus.FAILED),
     (ExecutionStatus.EXECUTING, ExecutionStatus.CANCELLED),
@@ -22,8 +24,10 @@ _EXECUTION_ALLOWED: set[tuple[ExecutionStatus, ExecutionStatus]] = {
     (ExecutionStatus.VALIDATING, ExecutionStatus.EXECUTING),
     (ExecutionStatus.VALIDATING, ExecutionStatus.FAILED),
     (ExecutionStatus.VALIDATING, ExecutionStatus.AWAITING_APPROVAL),
+    (ExecutionStatus.VALIDATING, ExecutionStatus.CANCELLED),
     (ExecutionStatus.AWAITING_APPROVAL, ExecutionStatus.COMPLETED),
     (ExecutionStatus.AWAITING_APPROVAL, ExecutionStatus.FAILED),
+    (ExecutionStatus.AWAITING_APPROVAL, ExecutionStatus.CANCELLED),
 }
 
 _STEP_ALLOWED: set[tuple[StepStatus, StepStatus]] = {

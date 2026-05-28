@@ -45,6 +45,7 @@ from app.runtime.state_machine import (
     validate_execution_transition,
     validate_step_transition,
 )
+from app.runtime.runtime_meta import is_cancellation_requested
 from app.runtime.step_executor import StepExecutor
 from knowledge_service.service import KnowledgeService
 from model_runtime.service import ModelRuntimeService
@@ -154,6 +155,8 @@ class ExecutionEngine:
         while True:
             ex = self._repo.get_execution(execution_id)
             assert ex is not None
+            if is_cancellation_requested(ex):
+                return cancel_execution(self._repo, execution_id, now=datetime.now(timezone.utc))
             if ex.status == ExecutionStatus.AWAITING_APPROVAL:
                 return ex
             if is_execution_terminal(ex.status):
@@ -338,6 +341,13 @@ class ExecutionEngine:
             step.input.get("workflow_type") == "incident_triage"
             and step.input.get("planner_step_name") == "gather_evidence"
         )
+
+    def _cancellation_check(self, execution_id: UUID):
+        def check() -> bool:
+            ex = self._repo.get_execution(execution_id)
+            return ex is not None and is_cancellation_requested(ex)
+
+        return check
 
     def _should_use_model_for_step(self, step: Step) -> bool:
         if self._model_runtime is None:
@@ -610,6 +620,8 @@ class ExecutionEngine:
             self._repo.update_execution(ex_cur)
 
         tool_calls: list[ToolCall] = []
+        assert self._tool_runtime is not None
+        tool_rt = self._tool_runtime.with_cancel_check(self._cancellation_check(step.execution_id))
         for tool_name in ("incident_metadata_tool", "signal_lookup_tool"):
             t_req = ToolInvokeRequest(
                 execution_id=step.execution_id,
@@ -618,7 +630,7 @@ class ExecutionEngine:
                 tool_name=tool_name,
                 input={"incident_id": incident_id},
             )
-            tc = self._tool_runtime.invoke(t_req, now=now)
+            tc = tool_rt.invoke(t_req, now=now)
             self._repo.save_tool_call(tc)
             tool_calls.append(tc)
             ex_t = self._repo.get_execution(step.execution_id)
@@ -1171,6 +1183,54 @@ class ExecutionEngine:
                 "validation_outcome": res.validation_outcome.model_dump(),
             }
         return {"recorded": False, "reason": "no_validation_step"}
+
+
+def cancel_execution(
+    repo: Repository,
+    execution_id: UUID,
+    *,
+    reason: str = "cancellation_requested",
+    now: datetime | None = None,
+) -> Execution:
+    """Move execution to CANCELLED when transition is allowed (Session C foundation)."""
+    from app.runtime.runtime_meta import request_cancellation_meta
+
+    ts = now or datetime.now(timezone.utc)
+    ex = repo.get_execution(execution_id)
+    if ex is None:
+        raise KeyError(execution_id)
+    ex = request_cancellation_meta(ex, at=ts, reason=reason)
+    if is_execution_terminal(ex.status):
+        repo.update_execution(ex)
+        return ex
+    try:
+        validate_execution_transition(ex.status, ExecutionStatus.CANCELLED)
+    except InvalidStatusTransitionError:
+        repo.update_execution(ex)
+        return ex
+    updated = ex.model_copy(
+        update={
+            "status": ExecutionStatus.CANCELLED,
+            "updated_at": ts,
+            "cancelled_at": ts,
+            "result": {"outcome": "cancelled", "reason": reason},
+        },
+    )
+    updated = _append_timeline(
+        updated,
+        "execution_status",
+        {"status": ExecutionStatus.CANCELLED.value, "reason": reason},
+        ts,
+    )
+    repo.update_execution(updated)
+    try:
+        from observability import emit_event, get_registry
+
+        get_registry().inc("execution_cancellations_total")
+        emit_event("execution_cancelled", execution_id=str(execution_id), reason=reason)
+    except ImportError:
+        pass
+    return updated
 
 
 def fail_execution(

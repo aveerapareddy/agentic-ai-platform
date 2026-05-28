@@ -11,13 +11,15 @@ from tool_runtime.registry import ToolRegistry, build_default_registry
 from tool_runtime.service import ToolRuntimeService
 
 
-def test_default_registry_lists_two_tools() -> None:
+def test_default_registry_lists_realistic_tools() -> None:
     reg = build_default_registry()
     names = {m.tool_name for m in reg.list_registered()}
-    assert names == {"incident_metadata_tool", "signal_lookup_tool"}
-    for m in reg.list_registered():
-        assert m.side_effect_class.value == "read_only"
-        assert m.idempotency.value == "idempotent"
+    assert "incident_system_tool" in names
+    assert "metrics_lookup_tool" in names
+    assert "cloud_cost_tool" in names
+    assert "incident_metadata_tool" in names
+    assert "signal_lookup_tool" in names
+    assert len(names) >= 5
 
 
 def test_incident_metadata_tool_success() -> None:

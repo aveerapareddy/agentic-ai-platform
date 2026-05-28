@@ -15,8 +15,17 @@ from gateway.main import create_app
 
 
 @contextmanager
-def _gateway(*, schedule_start: bool = False) -> Iterator[tuple[TestClient, FastAPI]]:
-    app = create_app(Settings(schedule_execution_start=schedule_start))
+def _gateway(
+    *,
+    schedule_start: bool = False,
+    use_worker_queue: bool = False,
+) -> Iterator[tuple[TestClient, FastAPI]]:
+    app = create_app(
+        Settings(
+            schedule_execution_start=schedule_start,
+            use_execution_worker_queue=use_worker_queue,
+        ),
+    )
     with TestClient(app, raise_server_exceptions=True) as c:
         yield c, app
 

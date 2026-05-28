@@ -16,7 +16,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        app.state.gateway = build_gateway_state(settings)
+        state = build_gateway_state(settings)
+        app.state.gateway = state
+        if settings.use_execution_worker_queue:
+            import threading
+
+            def _worker_loop() -> None:
+                import time
+
+                while True:
+                    if not state.execution_worker.run_once():
+                        time.sleep(0.05)
+
+            thread = threading.Thread(target=_worker_loop, name="execution-worker", daemon=True)
+            thread.start()
         yield
 
     app = FastAPI(title=settings.app_name, lifespan=lifespan)

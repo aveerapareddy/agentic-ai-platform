@@ -74,6 +74,7 @@ from .tooling import (
     ToolCallStatus,
     ToolIdempotency,
     ToolInvokeRequest,
+    ToolRetryPolicy,
     ToolSideEffectClass,
 )
 from .workflow import (
@@ -156,6 +157,7 @@ __all__ = [
     "ToolCallStatus",
     "ToolIdempotency",
     "ToolInvokeRequest",
+    "ToolRetryPolicy",
     "ToolSideEffectClass",
     "ValidationOutcome",
 ]

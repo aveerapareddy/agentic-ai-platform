@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     app_name: str = "agentic-ai-platform-gateway"
     debug: bool = False
     schedule_execution_start: bool = True
+    use_execution_worker_queue: bool = True
 
 
 def get_settings() -> Settings:

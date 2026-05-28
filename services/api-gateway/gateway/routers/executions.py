@@ -48,10 +48,13 @@ def create_execution(
             background_tasks.add_task(state.execution_service.start_execution, eid)
 
         start_cb = _schedule_start if state.settings.schedule_execution_start else None
+        ctx = dict(body.context)
+        if body.execution_mode is not None:
+            ctx["execution_mode"] = body.execution_mode
         ex = facade.create_execution(
             workflow_type=body.workflow_type,
             input_payload=dict(body.input),
-            context=dict(body.context),
+            context=ctx,
             idempotency_key=body.idempotency_key,
             schedule_start=state.settings.schedule_execution_start,
             start_callback=start_cb,
@@ -104,3 +107,16 @@ def list_executions(
         for e in rows
     ]
     return ListExecutionsResponse(items=items, next_cursor=None)
+
+
+@router.post("/{execution_id}/cancel", response_model=ExecutionDetailResponse)
+def cancel_execution(
+    execution_id: UUID,
+    request: Request,
+    facade: ExecutionFacadeDep,
+) -> ExecutionDetailResponse:
+    try:
+        ex = facade.request_cancellation(execution_id, reason="api_request")
+    except KeyError as e:
+        raise api_error(code="NOT_FOUND", message="execution not found", status_code=404, request=request) from e
+    return _to_detail(ex)
