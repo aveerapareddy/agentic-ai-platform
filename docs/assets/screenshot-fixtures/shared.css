@@ -1,11 +1,12 @@
-/* Fixture theme — mirrors operator-console src/styles.css */
+/* Fixture theme — mirrors operator-console src/styles.css (offline capture fallback) */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  --bg: #141518;
-  --surface: #1e1f24;
-  --surface-hover: #26272e;
-  --border: #34363e;
+  --bg: #0a0b0d;
+  --surface: #12141a;
+  --surface-elevated: #181a22;
+  --surface-hover: #1f222c;
+  --border: rgba(255, 255, 255, 0.08);
   --text: #ececef;
   --muted: #8b8d96;
   --accent: #5b8def;
@@ -30,20 +31,34 @@ body {
   min-height: 720px;
 }
 .shell { display: flex; min-height: 720px; }
-.nav {
-  width: 200px;
+.oc-sidebar {
+  width: 220px;
   border-right: 1px solid var(--border);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-3);
   background: var(--surface);
+  flex-shrink: 0;
 }
-.nav h1 { font-size: 13px; font-weight: 600; margin: 0 0 var(--space-4); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
-.nav a { display: block; padding: var(--space-2) var(--space-3); color: var(--muted); text-decoration: none; border-radius: var(--radius); margin-bottom: 2px; font-size: 13px; }
-.nav a.active { background: var(--surface-hover); color: var(--accent); }
-.main { flex: 1; padding: var(--space-5); }
+.oc-brand { font-size: 13px; font-weight: 600; margin: 0 0 var(--space-4); color: var(--text); }
+.oc-nav-section { margin-bottom: var(--space-4); }
+.oc-nav-title {
+  font-size: 10px; font-weight: 600; margin: 0 0 var(--space-2);
+  color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.oc-nav-item {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); color: var(--muted);
+  text-decoration: none; border-radius: var(--radius); margin-bottom: 2px; font-size: 13px;
+}
+.oc-nav-item.active { background: var(--surface-hover); color: var(--accent); }
+.oc-nav-item svg { width: 16px; height: 16px; opacity: 0.85; flex-shrink: 0; }
+.main { flex: 1; padding: var(--space-5); min-width: 0; }
 .page-title { font-size: 20px; font-weight: 600; margin: 0 0 var(--space-4); }
 .mono { font-family: var(--mono); font-size: 12px; }
 .muted { color: var(--muted); }
-.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); margin-bottom: var(--space-4); }
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-4); margin-bottom: var(--space-4);
+}
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -54,14 +69,29 @@ th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: upp
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
 .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
 .value { font-size: 13px; }
-.trace-step { border-left: 2px solid var(--border); padding-left: var(--space-3); margin: var(--space-3) 0; }
-.trace-step h3 { margin: 0 0 var(--space-2); font-size: 13px; font-weight: 600; }
-.event { font-size: 12px; padding: var(--space-2); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 4px; color: var(--muted); }
+.tl-group {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: var(--space-3); overflow: hidden;
+}
+.tl-group h3 {
+  margin: 0; padding: var(--space-2) var(--space-3); font-size: 12px; font-weight: 600;
+  background: var(--surface-elevated); color: var(--muted);
+}
+.event { font-size: 12px; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--border); color: var(--muted); }
 .sev-info { border-left: 3px solid var(--accent); }
 .sev-warn { border-left: 3px solid var(--warn); }
 .sev-sig { border-left: 3px solid var(--err); }
 .oc-btn {
   font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
   border-radius: var(--radius); border: 1px solid var(--border);
-  background: var(--surface); color: var(--text); padding: var(--space-2) var(--space-4);
+  background: var(--surface-elevated); color: var(--text); padding: var(--space-2) var(--space-4);
+}
+.oc-insight-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-4); margin-bottom: var(--space-3);
+}
+.oc-replay-banner {
+  background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4);
+  font-size: 13px;
 }

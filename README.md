@@ -22,19 +22,29 @@ Governance reference: [project constitution](docs/overview/project-constitution.
 
 ## Screenshots
 
-Operator-console views (dark, information-dense; [ui-system](docs/design/ui-system.md)). Regenerate: `python scripts/capture_demo_screenshots.py` after `make docker-seed`.
+**Modern operator console** (local stack): sidebar with SVG icons, execution explorer with filters, grouped **trace timeline**, **replay diff** UX, **Mukti insights** cards, **policy simulation**, and **live activity** rail. Dark, information-dense layout per [ui-system](docs/design/ui-system.md).
 
-| Explorer | Execution detail | Trace timeline |
-|:---:|:---:|:---:|
-| [![Execution explorer](docs/assets/screenshots/01-execution-explorer.png)](docs/assets/screenshots/01-execution-explorer.png) | [![Execution detail](docs/assets/screenshots/02-execution-detail.png)](docs/assets/screenshots/02-execution-detail.png) | [![Trace timeline](docs/assets/screenshots/03-trace-timeline.png)](docs/assets/screenshots/03-trace-timeline.png) |
+Regenerate after UI changes (stack up and seeded):
 
-| Replay diff | Metrics | Mukti insights |
-|:---:|:---:|:---:|
-| [![Replay diff](docs/assets/screenshots/04-replay-comparison.png)](docs/assets/screenshots/04-replay-comparison.png) | [![Metrics](docs/assets/screenshots/05-metrics-evaluation.png)](docs/assets/screenshots/05-metrics-evaluation.png) | [![Mukti insights](docs/assets/screenshots/06-mukti-insights.png)](docs/assets/screenshots/06-mukti-insights.png) |
+```bash
+make docker-up && make docker-seed
+pip install playwright && playwright install chromium
+CAPTURE_LIVE=1 CONSOLE_URL=http://localhost:4200 make capture-screenshots
+```
 
-| Policy simulation | Live / SSE | Workflows |
+Offline fallback (HTML fixtures): `make capture-screenshots`.
+
+| Execution Explorer | Execution Detail | Trace Timeline |
 |:---:|:---:|:---:|
-| [![Policy simulation](docs/assets/screenshots/07-policy-simulation.png)](docs/assets/screenshots/07-policy-simulation.png) | [![Live activity](docs/assets/screenshots/08-streaming-execution.png)](docs/assets/screenshots/08-streaming-execution.png) | [Incident triage](docs/assets/screenshots/10-incident-triage-workflow.png) · [Cost attribution](docs/assets/screenshots/09-cost-attribution-workflow.png) |
+| [![Execution Explorer](docs/assets/screenshots/01-execution-explorer.png)](docs/assets/screenshots/01-execution-explorer.png) | [![Execution Detail](docs/assets/screenshots/02-execution-detail.png)](docs/assets/screenshots/02-execution-detail.png) | [![Trace Timeline](docs/assets/screenshots/03-trace-timeline.png)](docs/assets/screenshots/03-trace-timeline.png) |
+
+| Replay Diff | Metrics | Mukti Insights |
+|:---:|:---:|:---:|
+| [![Replay Diff](docs/assets/screenshots/04-replay-comparison.png)](docs/assets/screenshots/04-replay-comparison.png) | [![Metrics](docs/assets/screenshots/05-metrics-evaluation.png)](docs/assets/screenshots/05-metrics-evaluation.png) | [![Mukti Insights](docs/assets/screenshots/06-mukti-insights.png)](docs/assets/screenshots/06-mukti-insights.png) |
+
+| Policy Simulation | Live Activity | Workflows |
+|:---:|:---:|:---:|
+| [![Policy Simulation](docs/assets/screenshots/07-policy-simulation.png)](docs/assets/screenshots/07-policy-simulation.png) | [![Live Activity](docs/assets/screenshots/08-streaming-execution.png)](docs/assets/screenshots/08-streaming-execution.png) | [Cost Attribution](docs/assets/screenshots/09-cost-attribution-workflow.png) · [Incident Triage](docs/assets/screenshots/10-incident-triage-workflow.png) |
 
 Full index: [docs/assets/screenshots/](docs/assets/screenshots/).
 
@@ -55,7 +65,7 @@ Phases **1–8** are represented for **local demo depth**: execution core, **inc
 | Mukti-agent (post-execution advisory) | Implemented |
 | Evaluation-engine (aggregates / replay diff) | Implemented |
 | API gateway (ingress, RBAC, SSE) | Implemented |
-| Operator-console | Implemented |
+| Operator-console (modern shell, grouped trace, replay diff, live activity) | Implemented |
 | Local Docker stack (Postgres + gateway + console) | Implemented |
 
 **Repository layout vs local runtime:** the repo contains **10 logical Python services** under `services/`. The recommended local demo runs **3 long-running Docker containers**—`postgres`, `api-gateway`, `operator-console`—with platform runtimes **wired in-process inside the gateway image** for operational simplicity. Boundaries remain in code and contracts; this is not a monolith rewrite.
@@ -93,14 +103,14 @@ Deeper docs: [system overview](docs/architecture/system-overview.md) · [runtime
 
 After [quick start](#quick-start) and `make docker-seed`:
 
-1. **Executions** — list filtered runs (`incident_triage`, `cost_attribution`).
-2. Open an **incident_triage** execution — summary, lifecycle steps, governance snippet.
-3. **Trace timeline** — grouped model / tool / policy / error events (expand payloads).
-4. **Replay** panel → create or open replay child → **Replay diff** (server-computed categories).
-5. **Metrics** (platform rollups) and per-execution evaluation on detail.
-6. **Mukti insights** — cross-execution advisory (`execution_feedback` must be seeded).
-7. **Policies** — read rule catalog; **simulate** (admin role in dev headers).
-8. **Live activity** — non-terminal runs; open detail for SSE **Live** badge on active executions.
+1. **Executions** — filter by workflow/status; open `incident_triage` or `cost_attribution` rows.
+2. **Execution detail** — ribbon summary, lifecycle steps, governance snippet.
+3. **Trace timeline** (detail, scroll to timeline) — grouped model / tool / policy / error events.
+4. **Replay & Diff** (sidebar) or detail replay panel → **Replay diff** (server-computed categories).
+5. **Metrics** — platform rollups; **Evaluation** route for per-run views where exposed.
+6. **Mukti Insights** — cross-execution advisory cards (`make docker-seed` with `sample_size > 0`).
+7. **Policies** — rule catalog and **simulate** (admin role in dev headers).
+8. **Live Activity** — non-terminal runs; active executions show SSE on detail when running.
 
 Guided write-ups: [incident triage](docs/workflows/incident-triage-walkthrough.md) · [cost attribution](docs/workflows/cost-attribution-walkthrough.md) · [replay investigation](docs/workflows/replay-investigation-walkthrough.md).
 

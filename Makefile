@@ -23,7 +23,7 @@ help:
 	@echo "  test           - gateway + orchestrator unit tests"
 	@echo "  health-smoke   - curl gateway /health/runtime"
 	@echo "  smoke-stack    - gateway health, /v1/metrics, executions list (optional console)"
-	@echo "  capture-screenshots - PNGs from docs/assets/screenshot-fixtures (playwright)"
+	@echo "  capture-screenshots - PNGs (fixtures; CAPTURE_LIVE=1 + CONSOLE_URL for live stack)"
 
 setup: install-py install-js
 
