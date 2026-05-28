@@ -91,6 +91,7 @@ describe('ExecutionDetailPage (metrics wiring)', () => {
     const el = fixture.nativeElement as HTMLElement;
       expect(el.textContent).toContain('Evaluation metrics');
       expect(el.textContent).toContain('Replay');
+      expect(el.textContent).toContain('Trace timeline');
     expect(el.textContent).toContain('Model fallback rate');
     expect(metricsApi.getExecutionMetrics).toHaveBeenCalledWith('e1');
     expect(metricsApi.getExecutionMetrics).toHaveBeenCalledTimes(1);

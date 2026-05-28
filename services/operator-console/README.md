@@ -18,7 +18,7 @@ Minimal **internal** Angular UI over **api-gateway** only ([system-overview.md](
 - **execution-summary** — workflow, status, timestamps, result/governance/validation snippets (read-only projections).
 - **execution-metrics** — per-execution metrics section (server-computed only).
 - **execution-replay-panel** — request exact or investigative replay (`POST …/replay`); shows lineage when viewing a replay child; links to replay detail and diff after create.
-- **trace-timeline** — timeline events, steps, tool calls, policy evaluations, approvals.
+- **trace-timeline** — grouped trace timeline (execution + step sections, model/tool/policy/error buckets), event cards with expandable payload fields, related tool/policy/approval records.
 - **approval-panel** — approve/reject through gateway.
 
 ## API layer
@@ -35,11 +35,21 @@ Minimal **internal** Angular UI over **api-gateway** only ([system-overview.md](
 - After create: links to open the replay execution or the replay diff page (no auto-navigation).
 - Diff page: summary cards, items grouped by category; severity colors per ui-system (info / warning / significant); values expand on demand.
 
+## Trace timeline (Session 4)
+
+- Events from `GET /v1/executions/{id}/trace` only; grouped and sorted in the UI for readability (no semantic inference).
+- **Step groups** show status, type, step duration (when `step_result.latency_ms` exists), and counts of model/tool/policy/error events.
+- **Sections** within each step: execution & steps, model runtime, tools & retrieval, policy & approval, errors & failures.
+- Per-event: type label, timestamp, summary, optional `latency_ms` from the event row, collapsed field list + optional raw JSON.
+- **Total execution latency** shown when evaluation metrics (`total_latency_ms`) are loaded — not invented from timeline alone.
+- **Model path** badge (`model_runtime` / `deterministic_fallback`) from last `model_reasoning` row for the step (display only).
+
 ## Limitations
 
 - No replay diff computation in the browser.
-- No advanced trace graph or side-by-side timeline visualization (Session 4+).
+- No trace graph / DAG / side-by-side timeline compare (future work).
 - Listing bounded by gateway `limit`; no server-side `execution_id` search filter.
+- Trace grouping uses fields present on gateway rows; missing latency or step metadata is omitted rather than estimated.
 
 ## Run
 
@@ -60,11 +70,11 @@ Open `http://127.0.0.1:4200`. For production builds, set `API_BASE_URL` via `API
 npm test
 ```
 
-Light coverage: replay API, replay panel validation, replay diff grouping, routes, execution detail wiring.
+Light coverage: replay API, replay panel validation, replay diff grouping, trace grouping util, trace timeline component, routes, execution detail wiring.
 
 ## Intentionally not in this phase
 
-- Advanced trace visualization / graph compare (Session 4).
+- Trace graph / DAG visualization and cross-execution trace compare.
 - Mukti insight detail drill-down; evaluation anomalies page.
 - Policy administration, feedback submission UI, full enterprise auth.
 - Charts or client-side metric/diff computation.

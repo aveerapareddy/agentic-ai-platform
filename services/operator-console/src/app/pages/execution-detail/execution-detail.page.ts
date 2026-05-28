@@ -49,7 +49,12 @@ import { shortExecutionId } from '../../core/ui/format-util';
         />
         <app-execution-replay-panel [execution]="execution" />
         <app-execution-steps [trace]="trace" />
-        <app-trace-timeline [trace]="trace" />
+        <app-trace-timeline
+          [trace]="trace"
+          [loading]="loading"
+          [error]="traceError"
+          [totalLatencyMs]="metrics?.total_latency_ms ?? null"
+        />
       </div>
     }
   `,
@@ -58,6 +63,7 @@ import { shortExecutionId } from '../../core/ui/format-util';
 export class ExecutionDetailPage implements OnInit {
   execution: ExecutionDetail | null = null;
   trace: TraceView | null = null;
+  traceError: string | null = null;
   metrics: ExecutionMetricsDto | null = null;
   metricsLoading = false;
   metricsError: string | null = null;
@@ -93,13 +99,22 @@ export class ExecutionDetailPage implements OnInit {
     this.metrics = null;
     this.metricsError = null;
     this.metricsLoading = false;
+    this.traceError = null;
     forkJoin({
       ex: this.api.getExecution(this.executionId),
-      tr: this.api.getTrace(this.executionId).pipe(catchError(() => of(null))),
+      tr: this.api.getTrace(this.executionId).pipe(
+        catchError((e: Error) => of({ failed: true as const, message: e.message })),
+      ),
     }).subscribe({
       next: ({ ex, tr }) => {
         this.execution = ex;
-        this.trace = tr;
+        if (tr && typeof tr === 'object' && 'failed' in tr && tr.failed) {
+          this.trace = null;
+          this.traceError = 'Could not load trace from api-gateway.';
+        } else {
+          this.trace = tr as TraceView;
+          this.traceError = null;
+        }
         this.loading = false;
         this.loadMetrics();
       },
@@ -108,6 +123,7 @@ export class ExecutionDetailPage implements OnInit {
         this.loadError = e.message;
         this.execution = null;
         this.trace = null;
+        this.traceError = null;
         this.metrics = null;
       },
     });

@@ -511,6 +511,12 @@ table.oc-table .col-ts {
 .tl-event.evt--validation {
   border-left-color: rgba(139, 141, 150, 0.9);
 }
+.tl-event.evt--replay {
+  border-left-color: rgba(91, 141, 239, 0.35);
+}
+.tl-event.evt--error {
+  border-left-color: var(--err-muted);
+}
 .tl-event.evt--exec,
 .tl-event.evt--default {
   border-left-color: var(--border);

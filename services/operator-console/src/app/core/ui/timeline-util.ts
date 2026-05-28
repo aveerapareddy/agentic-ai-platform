@@ -99,11 +99,16 @@ export function timelineEventKind(eventType: string): string {
       return 'evt--approval';
     case 'validation_performed':
       return 'evt--validation';
+    case 'replay_created':
+      return 'evt--replay';
     case 'execution_status':
     case 'governed_outcome':
     case 'action_proposed':
       return 'evt--exec';
     default:
+      if (eventType.toLowerCase().includes('fail') || eventType.toLowerCase().includes('error')) {
+        return 'evt--error';
+      }
       return 'evt--default';
   }
 }
@@ -154,6 +159,13 @@ export function timelineEventSummary(ev: TimelineEvent): string {
     case 'validation_performed': {
       const v = ev['validation_status'] != null ? String(ev['validation_status']) : '';
       return v ? `Validation · ${v}` : 'Validation performed';
+    }
+    case 'replay_created': {
+      const mode = ev['replay_mode'] != null ? String(ev['replay_mode']) : '';
+      const src = ev['source_execution_id'] != null ? String(ev['source_execution_id']) : '';
+      return [mode ? `Replay · ${mode}` : 'Replay created', src ? `from ${src.slice(0, 8)}…` : '']
+        .filter(Boolean)
+        .join(' ');
     }
     default:
       return t || 'Event';
