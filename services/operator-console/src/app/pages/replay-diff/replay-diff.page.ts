@@ -1,7 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ReplayApiService } from '../../core/api/replay-api.service';
-import type { ReplayDiffItemDto, ReplayDiffSummaryDto } from '../../core/models/replay.models';
+import type {
+  ReplayDiffCategory,
+  ReplayDiffItemDto,
+  ReplayDiffSummaryDto,
+} from '../../core/models/replay.models';
 import {
   categoryLabel,
   diffItemKey,
@@ -149,7 +153,7 @@ export class ReplayDiffPage implements OnInit {
   sourceId = '';
   replayId = '';
   summary: ReplayDiffSummaryDto | null = null;
-  grouped: { category: string; items: ReplayDiffItemDto[] }[] = [];
+  grouped: { category: ReplayDiffCategory; items: ReplayDiffItemDto[] }[] = [];
   loading = false;
   loadError: string | null = null;
   private expanded = new Set<string>();

@@ -29,6 +29,8 @@ def test_seed_module_has_main() -> None:
     mod = _load_module("seed_demo_data", root / "scripts" / "seed_demo_data.py")
     assert callable(mod.main)
     assert mod._TERMINAL
+    assert callable(mod.run_mukti_pipeline)
+    assert callable(mod.persist_mukti_execution_feedback)
 
 
 def test_smoke_module_has_main() -> None:

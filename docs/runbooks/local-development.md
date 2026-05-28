@@ -73,8 +73,9 @@ make seed
 - `incident_triage` execution (runs to completion)
 - `cost_attribution` execution
 - optional **replay** child for the incident
-- **operator feedback** samples
-- **Mukti insights** read (`GET /v1/insights/mukti`)
+- **operator feedback** per execution (`POST …/feedback`)
+- **Mukti `execution_feedback`** rows via `build_mukti_analysis_input` → `MuktiService.analyze` → `FeedbackService.save_execution_feedback` (requires **Postgres** / `GATEWAY_USE_POSTGRES=true` so the seed process shares the gateway DB)
+- **Mukti insights** read (`GET /v1/insights/mukti`; fails if `execution_feedback_sample_size` is 0)
 
 Uses idempotency keys (`demo-seed-*-v1`); reset DB or change keys to re-seed.
 

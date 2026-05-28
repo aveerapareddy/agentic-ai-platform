@@ -17,6 +17,7 @@ COPY services/mukti-agent /app/services/mukti-agent
 COPY services/evaluation-engine /app/services/evaluation-engine
 COPY services/orchestrator /app/services/orchestrator
 COPY services/api-gateway /app/services/api-gateway
+COPY scripts /app/scripts
 
 # Base packages (no file: path deps in pyproject).
 RUN pip install --no-cache-dir \
