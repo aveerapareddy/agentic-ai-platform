@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     debug: bool = False
     schedule_execution_start: bool = True
     use_execution_worker_queue: bool = True
+    allow_dev_principal_fallback: bool = True
+    dev_principal_id: str = "dev-operator"
+    dev_tenant_id: str = "dev-tenant"
+    dev_roles: str = "operator,admin"
 
 
 def get_settings() -> Settings:

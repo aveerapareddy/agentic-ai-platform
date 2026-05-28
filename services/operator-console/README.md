@@ -11,6 +11,7 @@ Minimal **internal** Angular UI over **api-gateway** only ([system-overview.md](
 | `/executions/:sourceId/replay-diff/:replayId` | **Replay diff** (`GET /v1/executions/{source}/replay-diff/{replay}`) — server-computed comparison grouped by category and severity. |
 | `/metrics` | Platform aggregates (`GET /v1/metrics`). |
 | `/insights` | Mukti v2 cross-execution insights (`GET /v1/insights/mukti`). |
+| `/policies` | Policy rule catalog and simulation (`GET /v1/policies`, `POST /v1/policies/simulate`). Read-only; no rule editing. |
 
 ## Components
 
@@ -27,6 +28,11 @@ Minimal **internal** Angular UI over **api-gateway** only ([system-overview.md](
 - **metrics-api.service** — execution and platform metrics.
 - **insights-api.service** — Mukti v2 insights.
 - **replay-api.service** — `POST /v1/executions/{id}/replay`, `GET /v1/executions/{source}/replay-diff/{replay}` (no client-side replay or diff logic).
+- **policy-api.service** — policy list and simulation (admin role required at gateway).
+
+## Auth headers (local dev)
+
+`authHeadersInterceptor` attaches `X-Principal-Id`, `X-Tenant-Id`, and `X-Roles` from `dev-auth-headers.ts` for local gateway use. Production deployments should rely on the gateway edge to inject identity; the UI must not become the source of truth for policy rules.
 
 ## Replay UX
 

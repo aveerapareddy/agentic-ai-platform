@@ -1,5 +1,6 @@
 """Shared Pydantic contracts aligned with the platform runtime model."""
 
+from .access import Principal, RequestContext, Role, TenantContext
 from .execution import (
     Execution,
     ExecutionContext,
@@ -73,6 +74,7 @@ from .policy import (
     PolicyEvaluation,
     RiskLevel,
 )
+from .policy_management import PolicyRuleDescriptor, PolicySimulateRequest, PolicySimulateResult
 from .tooling import (
     RegisteredTool,
     ToolCall,
@@ -136,6 +138,9 @@ __all__ = [
     "OperatorFeedback",
     "PatternDetection",
     "PlanId",
+    "PolicyRuleDescriptor",
+    "PolicySimulateRequest",
+    "PolicySimulateResult",
     "PolicyDecision",
     "PolicyEvaluation",
     "PolicyEvaluationId",
@@ -148,7 +153,10 @@ __all__ = [
     "ReplayMode",
     "ReplayProvenance",
     "ReplayRequest",
+    "Principal",
     "RegisteredTool",
+    "RequestContext",
+    "Role",
     "ResultId",
     "RetrievalId",
     "RetrievalRequest",
@@ -171,5 +179,6 @@ __all__ = [
     "ToolInvokeRequest",
     "ToolRetryPolicy",
     "ToolSideEffectClass",
+    "TenantContext",
     "ValidationOutcome",
 ]

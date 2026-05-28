@@ -4,8 +4,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Request
 
-from gateway.dependencies import FeedbackFacadeDep
+from gateway.dependencies import FeedbackFacadeDep, GatewayState, get_state
+from fastapi import Depends
 from gateway.http_errors import api_error
+from gateway.rbac import ExecutionsWriteDep
+from gateway.tenant_access import assert_execution_visible
 from gateway.schemas.requests import SubmitFeedbackRequest
 from gateway.schemas.responses import FeedbackCreatedResponse
 
@@ -17,8 +20,11 @@ def submit_feedback(
     execution_id: UUID,
     body: SubmitFeedbackRequest,
     request: Request,
+    auth: ExecutionsWriteDep,
     facade: FeedbackFacadeDep,
+    state: GatewayState = Depends(get_state),
 ) -> FeedbackCreatedResponse:
+    assert_execution_visible(state.repository, execution_id, auth, request=request)
     try:
         rec = facade.submit_feedback(
             execution_id,

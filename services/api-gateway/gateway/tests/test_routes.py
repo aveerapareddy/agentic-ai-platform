@@ -26,13 +26,25 @@ def _gateway(
             use_execution_worker_queue=use_worker_queue,
         ),
     )
-    with TestClient(app, raise_server_exceptions=True) as c:
+    with TestClient(app, raise_server_exceptions=True, headers=_auth_headers()) as c:
         yield c, app
+
+
+def _auth_headers(
+    *,
+    tenant_id: str = "t-gateway",
+    principal_id: str = "test-operator",
+    roles: str = "operator,admin",
+) -> dict[str, str]:
+    return {
+        "X-Principal-Id": principal_id,
+        "X-Tenant-Id": tenant_id,
+        "X-Roles": roles,
+    }
 
 
 def _base_context(**overrides: str) -> dict:
     base = {
-        "tenant_id": "t-gateway",
         "request_id": "req-1",
         "environment": "dev",
         "policy_scope": "default",
@@ -94,7 +106,7 @@ def test_trace_retrieval() -> None:
 
 def test_approval_submission() -> None:
     _app = create_app(Settings(schedule_execution_start=False))
-    with TestClient(_app, raise_server_exceptions=True) as c:
+    with TestClient(_app, raise_server_exceptions=True, headers=_auth_headers(roles="approver,admin")) as c:
         app = _app
         body = {
             "workflow_type": "incident_triage",

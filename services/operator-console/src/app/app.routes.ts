@@ -25,5 +25,9 @@ export const routes: Routes = [
     path: 'insights',
     loadComponent: () => import('./pages/insights/insights.page').then((m) => m.InsightsPage),
   },
+  {
+    path: 'policies',
+    loadComponent: () => import('./pages/policies/policies.page').then((m) => m.PoliciesPage),
+  },
   { path: '**', redirectTo: 'executions' },
 ];

@@ -8,7 +8,17 @@ from fastapi import FastAPI
 
 from gateway.config import Settings, get_settings
 from gateway.dependencies import build_gateway_state
-from gateway.routers import approvals, executions, feedback, insights, metrics, operational, replay, trace
+from gateway.routers import (
+    approvals,
+    executions,
+    feedback,
+    insights,
+    metrics,
+    operational,
+    policies,
+    replay,
+    trace,
+)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -40,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(feedback.router, prefix="/v1")
     app.include_router(replay.router, prefix="/v1")
     app.include_router(insights.router, prefix="/v1")
+    app.include_router(policies.router, prefix="/v1")
     app.include_router(operational.router)
     return app
 

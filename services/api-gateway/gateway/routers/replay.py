@@ -7,8 +7,11 @@ from fastapi.responses import JSONResponse
 
 from common_schemas import ReplayCreatedResponse, ReplayDiffSummary
 
-from gateway.dependencies import ExecutionFacadeDep, ReplayDiffFacadeDep
+from gateway.dependencies import ExecutionFacadeDep, GatewayState, ReplayDiffFacadeDep, get_state
+from fastapi import Depends
 from gateway.http_errors import api_error
+from gateway.rbac import ExecutionsReadDep, ExecutionsWriteDep
+from gateway.tenant_access import assert_execution_visible
 
 from gateway.schemas.requests import ReplayExecutionRequest
 
@@ -20,8 +23,11 @@ def request_replay(
     execution_id: UUID,
     body: ReplayExecutionRequest,
     request: Request,
+    auth: ExecutionsWriteDep,
     facade: ExecutionFacadeDep,
+    state: GatewayState = Depends(get_state),
 ) -> JSONResponse:
+    assert_execution_visible(state.repository, execution_id, auth, request=request)
     try:
         created = facade.request_replay(
             execution_id,
@@ -50,8 +56,12 @@ def get_replay_diff(
     execution_id: UUID,
     replay_execution_id: UUID,
     request: Request,
+    auth: ExecutionsReadDep,
     facade: ReplayDiffFacadeDep,
+    state: GatewayState = Depends(get_state),
 ) -> ReplayDiffSummary:
+    assert_execution_visible(state.repository, execution_id, auth, request=request)
+    assert_execution_visible(state.repository, replay_execution_id, auth, request=request)
     try:
         return facade.get_replay_diff(execution_id, replay_execution_id)
     except KeyError:

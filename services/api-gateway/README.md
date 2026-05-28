@@ -1,6 +1,6 @@
 # API Gateway (Phase 8)
 
-Thin **HTTP ingress** for the platform: validates requests, maps JSON to orchestrator and feedback-service calls, returns projections aligned with [docs/architecture/api-design.md](../../docs/architecture/api-design.md). **No workflow, policy, or tool logic** lives here.
+Thin **HTTP ingress** for the platform: validates requests, enforces **RBAC** and **tenant scope**, maps JSON to orchestrator and feedback-service calls, exposes **policy inspection/simulation** via policy-engine, and returns projections aligned with [docs/architecture/api-design.md](../../docs/architecture/api-design.md). **No workflow or tool logic** lives here; **policy decisions** are evaluated only in **policy-engine**.
 
 ## Python package layout
 
@@ -30,10 +30,28 @@ Business evaluation aggregates remain under **`GET /v1/metrics`**.
 
 Background runs (`execution_mode: background` + `GATEWAY_USE_EXECUTION_WORKER_QUEUE=true`) enqueue work for the in-process worker instead of blocking the HTTP handler.
 | `GET` | `/v1/executions/{execution_id}/replay-diff/{replay_execution_id}` | Delegates to `ReplayDiffService`: structured `ReplayDiffSummary` (read-only comparison of stored artifacts). |
+| `GET` | `/v1/policies` | Lists deterministic rule descriptors from policy-engine (**admin** role). |
+| `POST` | `/v1/policies/simulate` | What-if policy evaluation (**admin** role); does not mutate rules. |
+
+## Auth (Session E — local/dev)
+
+Headers: `X-Principal-Id`, `X-Tenant-Id`, `X-Roles` (comma-separated: `viewer`, `operator`, `approver`, `admin`).
+
+Environment:
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `GATEWAY_ALLOW_DEV_PRINCIPAL_FALLBACK` | `true` | Use dev principal when headers omitted |
+| `GATEWAY_DEV_PRINCIPAL_ID` | `dev-operator` | Fallback principal |
+| `GATEWAY_DEV_TENANT_ID` | `dev-tenant` | Fallback tenant |
+| `GATEWAY_DEV_ROLES` | `operator,admin` | Fallback roles |
+
+Execution create merges trusted tenant/principal into `context`; conflicting `context.tenant_id` returns **400**.
 
 ## Supported `workflow_type` values (gateway allowlist)
 
 - `incident_triage`
+- `cost_attribution`
 - `generic`
 
 (Others return `400` until registered here and implemented in the orchestrator.)

@@ -4,8 +4,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
 
+from gateway.context_merge import merge_execution_context
 from gateway.dependencies import ExecutionFacadeDep, GatewayState, get_state
 from gateway.http_errors import api_error
+from gateway.rbac import ExecutionsReadDep, ExecutionsWriteDep
+from gateway.tenant_access import assert_execution_visible
 from gateway.schemas.requests import CreateExecutionRequest
 from gateway.schemas.responses import (
     CreateExecutionResponse,
@@ -39,6 +42,7 @@ def create_execution(
     body: CreateExecutionRequest,
     request: Request,
     background_tasks: BackgroundTasks,
+    auth: ExecutionsWriteDep,
     facade: ExecutionFacadeDep,
     state: GatewayState = Depends(get_state),
 ) -> CreateExecutionResponse:
@@ -48,7 +52,7 @@ def create_execution(
             background_tasks.add_task(state.execution_service.start_execution, eid)
 
         start_cb = _schedule_start if state.settings.schedule_execution_start else None
-        ctx = dict(body.context)
+        ctx = merge_execution_context(dict(body.context), auth)
         if body.execution_mode is not None:
             ctx["execution_mode"] = body.execution_mode
         ex = facade.create_execution(
@@ -75,24 +79,34 @@ def create_execution(
 def get_execution(
     execution_id: UUID,
     request: Request,
+    auth: ExecutionsReadDep,
     facade: ExecutionFacadeDep,
+    state: GatewayState = Depends(get_state),
 ) -> ExecutionDetailResponse:
-    ex = facade.get_execution(execution_id)
-    if ex is None:
-        raise api_error(code="NOT_FOUND", message="execution not found", status_code=404, request=request)
+    ex = assert_execution_visible(state.repository, execution_id, auth, request=request)
     return _to_detail(ex)
 
 
 @router.get("", response_model=ListExecutionsResponse)
 def list_executions(
+    request: Request,
+    auth: ExecutionsReadDep,
     facade: ExecutionFacadeDep,
     workflow_type: str | None = Query(default=None),
     status: str | None = Query(default=None),
     tenant_id: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=500),
 ) -> ListExecutionsResponse:
+    scoped_tenant = auth.tenant.tenant_id
+    if tenant_id is not None and tenant_id != scoped_tenant:
+        raise api_error(
+            code="FORBIDDEN",
+            message="tenant_id query must match authenticated tenant",
+            status_code=403,
+            request=request,
+        )
     rows = facade.list_executions(
-        tenant_id=tenant_id,
+        tenant_id=scoped_tenant,
         workflow_type=workflow_type,
         status=status,
         limit=limit,
@@ -113,8 +127,11 @@ def list_executions(
 def cancel_execution(
     execution_id: UUID,
     request: Request,
+    auth: ExecutionsWriteDep,
     facade: ExecutionFacadeDep,
+    state: GatewayState = Depends(get_state),
 ) -> ExecutionDetailResponse:
+    assert_execution_visible(state.repository, execution_id, auth, request=request)
     try:
         ex = facade.request_cancellation(execution_id, reason="api_request")
     except KeyError as e:

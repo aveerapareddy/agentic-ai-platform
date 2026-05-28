@@ -1,6 +1,6 @@
 # Policy engine (Phase 3)
 
-Deterministic evaluation of **action proposals** against **execution context** facts. Returns `allow`, `deny`, or `conditional`. Does not persist rows, drive execution state, or invoke tools.
+Deterministic evaluation of **action proposals** against **execution context** facts. Returns `allow`, `deny`, or `conditional`. Does not persist rows, drive execution state, or invoke tools. **Gateway** exposes read/simulate APIs; this service owns evaluation logic only.
 
 ## Package layout
 
@@ -13,6 +13,13 @@ Deterministic evaluation of **action proposals** against **execution context** f
 - `policy_scope == phase3_deny` → **deny**.
 - `environment == prod` or `policy_scope == phase3_conditional` → **conditional** (approval required).
 - Otherwise → **allow**.
+
+## Rule descriptors and simulation (Session E)
+
+- `list_rule_descriptors()` — static catalog (`rule_id`, `description`, `applies_to`, `decision`, `reason`).
+- `simulate_policy(PolicySimulateRequest, tenant_id=…)` — runs the same evaluator as runtime; returns `PolicySimulateResult` with matched rules and references.
+
+No dynamic rule DSL or rule mutation in this session.
 
 ## Tests
 

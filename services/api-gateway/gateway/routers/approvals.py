@@ -5,8 +5,11 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 
 from gateway._bootstrap import ensure_platform_paths
-from gateway.dependencies import ExecutionFacadeDep
+from gateway.dependencies import ExecutionFacadeDep, GatewayState, get_state
+from fastapi import Depends
 from gateway.http_errors import api_error
+from gateway.rbac import ApprovalsWriteDep
+from gateway.tenant_access import assert_execution_visible
 from gateway.schemas.requests import SubmitApprovalRequest
 from gateway.schemas.responses import ApprovalCreatedResponse
 
@@ -22,8 +25,11 @@ def submit_approval(
     execution_id: UUID,
     body: SubmitApprovalRequest,
     request: Request,
+    _auth: ApprovalsWriteDep,
     facade: ExecutionFacadeDep,
+    state: GatewayState = Depends(get_state),
 ) -> ApprovalCreatedResponse:
+    assert_execution_visible(state.repository, execution_id, _auth, request=request)
     try:
         approval = facade.submit_approval(
             execution_id,

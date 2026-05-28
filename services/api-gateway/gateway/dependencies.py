@@ -14,6 +14,7 @@ from gateway.services.evaluation_facade import EvaluationFacade
 from gateway.services.execution_facade import ExecutionFacade
 from gateway.services.feedback_facade import FeedbackFacade
 from gateway.services.mukti_facade import MuktiFacade
+from gateway.services.policy_facade import PolicyFacade
 from gateway.services.replay_diff_facade import ReplayDiffFacade
 
 ensure_platform_paths()
@@ -27,6 +28,7 @@ from app.services.replay_service import ReplayService
 from evaluation_engine import EvaluationService
 from feedback_service.service import FeedbackService
 from mukti_agent.service import MuktiService
+from policy_engine.service import PolicyEvaluationService
 
 
 @dataclass
@@ -41,6 +43,7 @@ class GatewayState:
     mukti_service: MuktiService
     replay_service: ReplayService
     replay_diff_service: ReplayDiffService
+    policy_service: PolicyEvaluationService
     idempotency: dict[tuple[str, str, str], UUID] = field(default_factory=dict)
 
 
@@ -55,6 +58,7 @@ def build_gateway_state(settings: Settings | None = None) -> GatewayState:
     mukti_service = MuktiService()
     replay_service = ReplayService(repo, execution_service)
     replay_diff_service = ReplayDiffService(repo)
+    policy_service = PolicyEvaluationService()
     return GatewayState(
         settings=settings,
         repository=repo,
@@ -66,6 +70,7 @@ def build_gateway_state(settings: Settings | None = None) -> GatewayState:
         mukti_service=mukti_service,
         replay_service=replay_service,
         replay_diff_service=replay_diff_service,
+        policy_service=policy_service,
     )
 
 
@@ -99,12 +104,12 @@ def get_mukti_facade(state: Annotated[GatewayState, Depends(get_state)]) -> Mukt
     )
 
 
-async def auth_placeholder(request: Request) -> None:
-    """Reserved for JWT / mTLS; no-op in default Phase 8 deployment."""
-    _ = request
+def get_policy_facade(state: Annotated[GatewayState, Depends(get_state)]) -> PolicyFacade:
+    return PolicyFacade(policy_service=state.policy_service)
 
 
 ExecutionFacadeDep = Annotated[ExecutionFacade, Depends(get_execution_facade)]
+PolicyFacadeDep = Annotated[PolicyFacade, Depends(get_policy_facade)]
 FeedbackFacadeDep = Annotated[FeedbackFacade, Depends(get_feedback_facade)]
 EvaluationFacadeDep = Annotated[EvaluationFacade, Depends(get_evaluation_facade)]
 MuktiFacadeDep = Annotated[MuktiFacade, Depends(get_mukti_facade)]

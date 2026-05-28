@@ -8,16 +8,46 @@ One-line purpose: access, policy, and audit expectations aligned with implemente
 - **Tool credentials** are service-scoped; end users do not hold them.
 - **Mukti** must not obtain live execution control messages or orchestrator admin APIs.
 
-**Current repo gap:** **api-gateway** is not implemented; in-process tests and `app.main` bypass external auth—acceptable for development only.
+## Identity and access (Session E — local/dev foundation)
 
-## Identity and access
+Production shape: gateway validates identity and maps to **execution_context** fields (`tenant_id`, `principal_id`, `permissions_scope`, `policy_scope`, `environment`). Orchestrator persists context and propagates IDs to tool calls and policy evaluation inputs.
 
-Production shape: gateway validates identity and maps to **execution_context** fields (`tenant_id`, `principal_id`, `permissions_scope`, `policy_scope`, `environment`). Orchestrator persists context and propagates IDs to tool calls and policy evaluation inputs. **Today**, tests construct context explicitly without IAM integration.
+### Auth header model (development)
+
+| Header | Purpose |
+|--------|---------|
+| `X-Principal-Id` | Authenticated user or service principal |
+| `X-Tenant-Id` | Trusted tenant scope |
+| `X-Roles` | Comma-separated roles: `viewer`, `operator`, `approver`, `admin` |
+
+When headers are absent, `GATEWAY_ALLOW_DEV_PRINCIPAL_FALLBACK=true` (default) supplies `GATEWAY_DEV_PRINCIPAL_ID`, `GATEWAY_DEV_TENANT_ID`, and `GATEWAY_DEV_ROLES`. Set fallback to **false** in shared environments.
+
+**Not implemented:** OIDC/JWT validation, mTLS client certs, or centralized IAM integration. These belong behind a future `AuthProvider` interface at the gateway edge.
+
+### RBAC (gateway only)
+
+| Capability | Roles |
+|------------|--------|
+| List/read executions, trace, replay diff | `viewer`, `operator`, `approver`, `admin` |
+| Create executions, feedback, replay, cancel | `operator`, `admin` |
+| Submit approvals | `approver`, `admin` |
+| List policy rules, simulate policy | `admin` |
+
+Denied requests return structured **403** with `error.code: FORBIDDEN`. Missing identity (fallback disabled) returns **401**.
+
+### Tenant propagation
+
+- Gateway **merges** trusted `tenant_id` and `principal_id` into execution `context` on create.
+- Client-supplied `context.tenant_id` that **conflicts** with the authenticated tenant is rejected (**400**).
+- Execution reads verify the stored execution context tenant matches the caller.
+
+**Policy evaluation** remains in **policy-engine**; the gateway does not implement allow/deny business rules except RBAC.
 
 ## Policy gates
 
 - **policy-engine** evaluates explicit requests; agents do not self-approve.
 - **Conditional** outcomes can force **awaiting_approval**; **deny** records a terminal governance outcome without executing governed side effects in the incident path implemented today.
+- **Policy simulation** (`POST /v1/policies/simulate`) calls the same evaluator as runtime proposals; it does not mutate rule packs.
 
 ## Approval flow
 
@@ -43,3 +73,9 @@ Services are expected to load DB URLs and future API keys from environment or a 
 ## Data protection
 
 Classification, encryption at rest, and field-level redaction are **deployment concerns**; schemas use JSONB for flexibility but do not embed encryption logic.
+
+## Limitations
+
+- No OAuth/OIDC provider wiring in this repository snapshot.
+- RBAC is coarse role-based, not resource-level ABAC.
+- Operator-console sends dev auth headers via HTTP interceptor for local use only; production must attach real identity at the gateway edge.
