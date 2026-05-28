@@ -13,6 +13,11 @@ export const routes: Routes = [
       import('./pages/execution-detail/execution-detail.page').then((m) => m.ExecutionDetailPage),
   },
   {
+    path: 'executions/:sourceId/replay-diff/:replayId',
+    loadComponent: () =>
+      import('./pages/replay-diff/replay-diff.page').then((m) => m.ReplayDiffPage),
+  },
+  {
     path: 'metrics',
     loadComponent: () => import('./pages/metrics/metrics.page').then((m) => m.MetricsPage),
   },

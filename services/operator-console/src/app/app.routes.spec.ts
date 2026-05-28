@@ -7,6 +7,7 @@ describe('app.routes', () => {
     expect(paths).toContain('executions/:executionId');
     expect(paths).toContain('metrics');
     expect(paths).toContain('insights');
+    expect(paths).toContain('executions/:sourceId/replay-diff/:replayId');
   });
 
   it('defaults to executions', () => {

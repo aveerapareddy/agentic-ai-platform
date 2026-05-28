@@ -11,6 +11,7 @@ import { ExecutionStepsComponent } from '../../components/execution-steps/execut
 import { TraceTimelineComponent } from '../../components/trace-timeline/trace-timeline.component';
 import { ApprovalPanelComponent } from '../../components/approval-panel/approval-panel.component';
 import { ExecutionMetricsComponent } from '../../components/execution-metrics/execution-metrics.component';
+import { ExecutionReplayPanelComponent } from '../../components/execution-replay-panel/execution-replay-panel.component';
 import { shortExecutionId } from '../../core/ui/format-util';
 
 @Component({
@@ -21,6 +22,7 @@ import { shortExecutionId } from '../../core/ui/format-util';
     ExecutionSummaryComponent,
     ApprovalPanelComponent,
     ExecutionMetricsComponent,
+    ExecutionReplayPanelComponent,
     ExecutionStepsComponent,
     TraceTimelineComponent,
   ],
@@ -45,6 +47,7 @@ import { shortExecutionId } from '../../core/ui/format-util';
           [loading]="metricsLoading"
           [error]="metricsError"
         />
+        <app-execution-replay-panel [execution]="execution" />
         <app-execution-steps [trace]="trace" />
         <app-trace-timeline [trace]="trace" />
       </div>
