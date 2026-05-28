@@ -18,17 +18,37 @@ COPY services/evaluation-engine /app/services/evaluation-engine
 COPY services/orchestrator /app/services/orchestrator
 COPY services/api-gateway /app/services/api-gateway
 
+# Base packages (no file: path deps in pyproject).
 RUN pip install --no-cache-dir \
     -e /app/packages/common-schemas \
-    -e /app/packages/observability \
-    -e /app/services/api-gateway
+    -e /app/packages/observability
+
+# Services without file: local paths (safe from any cwd).
+RUN pip install --no-cache-dir \
+    -e /app/services/policy-engine \
+    -e /app/services/knowledge-service \
+    -e /app/services/feedback-service \
+    -e /app/services/mukti-agent \
+    -e /app/services/evaluation-engine
+
+# file: paths in pyproject.toml are relative to each project directory — install from that cwd.
+WORKDIR /app/services/tool-runtime
+RUN pip install --no-cache-dir -e .
+
+WORKDIR /app/services/model-runtime
+RUN pip install --no-cache-dir -e .
+
+WORKDIR /app/services/orchestrator
+RUN pip install --no-cache-dir -e .
+
+WORKDIR /app/services/api-gateway
+RUN pip install --no-cache-dir -e .
 
 ENV MODEL_PROVIDER=fake \
     GATEWAY_ALLOW_DEV_PRINCIPAL_FALLBACK=true \
     GATEWAY_SCHEDULE_EXECUTION_START=true \
     GATEWAY_USE_EXECUTION_WORKER_QUEUE=true
 
-WORKDIR /app/services/api-gateway
 EXPOSE 8080
 
 CMD ["uvicorn", "gateway.main:app", "--host", "0.0.0.0", "--port", "8080"]
