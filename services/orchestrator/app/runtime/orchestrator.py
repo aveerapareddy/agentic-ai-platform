@@ -12,6 +12,10 @@ from common_schemas import (
     ActionProposalStatus,
     Approval,
     ApprovalDecision,
+    CostAttributionAnalysisModelRequest,
+    CostAttributionReasoningOutput,
+    CostAttributionValidationModelRequest,
+    CostValidationOutput,
     Execution,
     ExecutionPlan,
     ExecutionStatus,
@@ -266,6 +270,8 @@ class ExecutionEngine:
                 st_type = StepType.REASONING
             elif kind == "retrieval":
                 st_type = StepType.RETRIEVAL
+            elif kind == "tool":
+                st_type = StepType.TOOL
             else:
                 st_type = kind
             agent = spec.get("agent") or self._settings.default_agent_reasoning
@@ -337,10 +343,13 @@ class ExecutionEngine:
     def _should_use_tooling_for_step(self, step: Step) -> bool:
         if self._tool_runtime is None or self._knowledge is None:
             return False
-        return (
-            step.input.get("workflow_type") == "incident_triage"
-            and step.input.get("planner_step_name") == "gather_evidence"
-        )
+        wt = step.input.get("workflow_type")
+        name = step.input.get("planner_step_name")
+        if wt == "incident_triage" and name == "gather_evidence":
+            return True
+        if wt == "cost_attribution" and name in ("retrieve_cost_evidence", "correlate_usage_patterns"):
+            return True
+        return False
 
     def _cancellation_check(self, execution_id: UUID):
         def check() -> bool:
@@ -352,10 +361,13 @@ class ExecutionEngine:
     def _should_use_model_for_step(self, step: Step) -> bool:
         if self._model_runtime is None:
             return False
-        if step.input.get("workflow_type") != "incident_triage":
-            return False
+        wt = step.input.get("workflow_type")
         name = step.input.get("planner_step_name")
-        return name in ("analyze_incident", "validate_incident")
+        if wt == "incident_triage":
+            return name in ("analyze_incident", "validate_incident")
+        if wt == "cost_attribution":
+            return name in ("analyze_cost_anomaly", "validate_cost_attribution")
+        return False
 
     def _prior_analyze_and_gather_outputs(self, execution_id: UUID) -> tuple[dict[str, Any], dict[str, Any]]:
         analyze_out: dict[str, Any] = {}
@@ -725,6 +737,408 @@ class ExecutionEngine:
             updated_at=now,
         )
 
+    def _scope_id_from_input(self, ex_in: dict[str, Any]) -> str:
+        return str(ex_in.get("scope_id") or ex_in.get("billing_scope_id") or ex_in.get("id", "unknown"))
+
+    def _prior_cost_step_outputs(
+        self,
+        execution_id: UUID,
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+        analyze_out: dict[str, Any] = {}
+        retrieve_out: dict[str, Any] = {}
+        correlate_out: dict[str, Any] = {}
+        for s in self._repo.list_steps_for_execution(execution_id):
+            pname = s.input.get("planner_step_name")
+            res = self._repo.get_step_result(s.step_id)
+            out = res.output if res is not None and isinstance(res.output, dict) else {}
+            if pname == "analyze_cost_anomaly":
+                analyze_out = dict(out)
+            elif pname == "retrieve_cost_evidence":
+                retrieve_out = dict(out)
+            elif pname == "correlate_usage_patterns":
+                correlate_out = dict(out)
+        return analyze_out, retrieve_out, correlate_out
+
+    def _step_result_from_cost_analyze_model(
+        self,
+        step: Step,
+        now: datetime,
+        out: CostAttributionReasoningOutput,
+    ) -> StepResult:
+        rid: ResultId = uuid4()
+        return StepResult(
+            step_result_id=rid,
+            step_id=step.step_id,
+            output={
+                "suspected_service": out.suspected_service,
+                "suspected_team": out.suspected_team,
+                "anomaly_type": out.anomaly_type,
+                "estimated_cost_impact_usd": out.estimated_cost_impact_usd,
+                "attribution_summary": out.attribution_summary,
+                "optimization_candidates": list(out.optimization_candidates),
+                "evidence_references": list(out.evidence_references),
+            },
+            evidence=[
+                {
+                    "type": "model_reasoning",
+                    "provider": out.provider_label,
+                    "invocation_id": out.model_invocation_id,
+                    "task": "analyze_cost_anomaly",
+                },
+            ],
+            errors=[],
+            latency_ms=1,
+            latency_started_at=now,
+            latency_ended_at=now,
+            confidence_score=0.85,
+            confidence_detail={
+                "source": "model_runtime",
+                "provider": out.provider_label,
+                "task": "analyze_cost_anomaly",
+            },
+            completeness=StepCompleteness.FULL,
+            validation_outcome=None,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def _step_result_from_cost_validate_model(
+        self,
+        step: Step,
+        now: datetime,
+        out: CostValidationOutput,
+    ) -> StepResult:
+        rid: ResultId = uuid4()
+        vo = ValidationOutcome(
+            status=out.validation_status,
+            details={
+                "likely_service": out.likely_service,
+                "likely_team": out.likely_team,
+                "confidence": out.confidence,
+                "model_invocation_id": out.model_invocation_id,
+                "provider": out.provider_label,
+            },
+        )
+        return StepResult(
+            step_result_id=rid,
+            step_id=step.step_id,
+            output={
+                "validation_status": out.validation_status,
+                "confidence": out.confidence,
+                "likely_service": out.likely_service,
+                "likely_team": out.likely_team,
+                "recommended_actions": list(out.recommended_actions),
+                "digest": out.digest,
+            },
+            evidence=[
+                {
+                    "type": "model_reasoning",
+                    "provider": out.provider_label,
+                    "invocation_id": out.model_invocation_id,
+                    "task": "validate_cost_attribution",
+                },
+            ],
+            errors=[],
+            latency_ms=1,
+            latency_started_at=now,
+            latency_ended_at=now,
+            confidence_score=out.confidence,
+            confidence_detail={
+                "source": "model_runtime",
+                "provider": out.provider_label,
+                "task": "validate_cost_attribution",
+            },
+            completeness=StepCompleteness.FULL,
+            validation_outcome=vo,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def _cost_model_reasoning_step(self, step: Step, now: datetime) -> StepResult:
+        assert self._model_runtime is not None
+        name = step.input.get("planner_step_name")
+        if not isinstance(name, str):
+            return self._executor.execute_step(step)
+        ex_in = step.input.get("execution_input")
+        if not isinstance(ex_in, dict):
+            ex_in = {}
+        scope_id = self._scope_id_from_input(ex_in)
+        keys = sorted(ex_in.keys())[:12]
+        excerpt = {k: ex_in[k] for k in keys}
+        cost_tasks = ("analyze_cost_anomaly", "validate_cost_attribution")
+
+        try:
+            if name == "analyze_cost_anomaly":
+                req = CostAttributionAnalysisModelRequest(
+                    execution_id=step.execution_id,
+                    step_id=step.step_id,
+                    scope_id=scope_id,
+                    execution_input_excerpt=excerpt,
+                )
+                call = self._model_runtime.analyze_cost_anomaly(req)
+                out = call.output
+                inv = out.invocation.model_dump() if out.invocation is not None else None
+                self._trace_model_reasoning(
+                    step.execution_id,
+                    step,
+                    path="model_runtime",
+                    task="analyze_cost_anomaly",
+                    now=now,
+                    provider=out.provider_label,
+                    invocation=inv,
+                )
+                return self._step_result_from_cost_analyze_model(step, now, out)
+            if name == "validate_cost_attribution":
+                analyze_out, retrieve_out, correlate_out = self._prior_cost_step_outputs(step.execution_id)
+                opt = analyze_out.get("optimization_candidates")
+                prior_opt = [str(x) for x in opt] if isinstance(opt, list) else []
+                req = CostAttributionValidationModelRequest(
+                    execution_id=step.execution_id,
+                    step_id=step.step_id,
+                    scope_id=scope_id,
+                    prior_attribution_summary=str(analyze_out.get("attribution_summary", ""))[:2000],
+                    prior_evidence_summary=str(retrieve_out.get("evidence_summary", ""))[:2000],
+                    prior_optimization_candidates=prior_opt[:16],
+                )
+                _ = correlate_out  # correlated signals available for future model prompts
+                vcall = self._model_runtime.validate_cost_attribution(req)
+                vout = vcall.output
+                vinv = vout.invocation.model_dump() if vout.invocation is not None else None
+                self._trace_model_reasoning(
+                    step.execution_id,
+                    step,
+                    path="model_runtime",
+                    task="validate_cost_attribution",
+                    now=now,
+                    provider=vout.provider_label,
+                    invocation=vinv,
+                )
+                return self._step_result_from_cost_validate_model(step, now, vout)
+        except Exception as exc:  # noqa: BLE001
+            try:
+                from observability import emit_event, get_registry
+
+                get_registry().inc(
+                    "model_fallback_total",
+                    labels={"task": name if name in cost_tasks else "unknown"},
+                )
+                emit_event(
+                    "model_fallback",
+                    execution_id=str(step.execution_id),
+                    step_id=str(step.step_id),
+                    task=name,
+                    error_class=type(exc).__name__,
+                )
+            except ImportError:
+                pass
+            self._trace_model_reasoning(
+                step.execution_id,
+                step,
+                path="deterministic_fallback",
+                task=name if name in cost_tasks else "unknown",
+                now=now,
+                error_class=type(exc).__name__,
+                error_message=str(exc),
+            )
+            return self._executor.execute_step(step)
+
+        return self._executor.execute_step(step)
+
+    def _retrieve_cost_evidence_via_services(self, step: Step, now: datetime) -> StepResult:
+        assert self._knowledge is not None
+        ex = self._repo.get_execution(step.execution_id)
+        if ex is None:
+            raise OrchestrationError(f"missing execution {step.execution_id}")
+        ctx = self._repo.get_context(ex.execution_context_id)
+        if ctx is None:
+            raise OrchestrationError(f"missing context {ex.execution_context_id}")
+        ex_in = step.input.get("execution_input")
+        if not isinstance(ex_in, dict):
+            ex_in = {}
+        scope_id = self._scope_id_from_input(ex_in)
+        service = str(ex_in.get("service_id") or ex_in.get("service") or "")
+
+        filters: dict[str, Any] = {"workflow": "cost_attribution"}
+        if service:
+            filters["service"] = service
+
+        ret_req = RetrievalRequest(
+            tenant_id=ctx.tenant_id,
+            workflow_type="cost_attribution",
+            query=f"cost billing spend anomaly attribution usage metrics for scope {scope_id}",
+            max_results=5,
+            filters=filters,
+            correlation_request_id=ctx.request_id,
+        )
+        retrieval = self._knowledge.retrieve(ret_req)
+        ex_cur = self._repo.get_execution(step.execution_id)
+        if ex_cur:
+            ex_cur = _append_timeline(
+                ex_cur,
+                "knowledge_retrieved",
+                {
+                    "step_id": str(step.step_id),
+                    "retrieval_id": str(retrieval.retrieval_id),
+                    "chunk_count": len(retrieval.chunks),
+                    "corpus_version": retrieval.corpus_version,
+                    "workflow_type": "cost_attribution",
+                },
+                now,
+            )
+            self._repo.update_execution(ex_cur)
+
+        evidence: list[dict[str, Any]] = [
+            {
+                "type": "knowledge_retrieval",
+                "retrieval_id": str(retrieval.retrieval_id),
+                "corpus_version": retrieval.corpus_version,
+                "chunk_ids": [c.chunk_id for c in retrieval.chunks],
+            },
+        ]
+        for ch in retrieval.chunks:
+            evidence.append(
+                {
+                    "type": "knowledge_chunk",
+                    "chunk_id": ch.chunk_id,
+                    "document_id": ch.document_id,
+                    "source_uri": ch.source_uri,
+                    "title": ch.title,
+                    "excerpt": ch.text_excerpt[:280],
+                    "score": ch.score,
+                    "metadata": dict(ch.metadata),
+                },
+            )
+
+        rid: ResultId = uuid4()
+        return StepResult(
+            step_result_id=rid,
+            step_id=step.step_id,
+            output={
+                "scope_id": scope_id,
+                "evidence_summary": (
+                    f"Retrieved {len(retrieval.chunks)} cost/billing knowledge chunk(s) for {scope_id}"
+                ),
+                "chunk_ids": [c.chunk_id for c in retrieval.chunks],
+                "retrieval_id": str(retrieval.retrieval_id),
+                "corpus_version": retrieval.corpus_version,
+            },
+            evidence=evidence,
+            errors=[],
+            latency_ms=1,
+            latency_started_at=now,
+            latency_ended_at=now,
+            confidence_score=0.87,
+            confidence_detail={
+                "source": "retrieve_cost_evidence",
+                "retrieval_id": str(retrieval.retrieval_id),
+            },
+            completeness=StepCompleteness.FULL,
+            validation_outcome=None,
+            created_at=now,
+            updated_at=now,
+        )
+
+    def _correlate_usage_via_tools(self, step: Step, now: datetime) -> StepResult:
+        assert self._tool_runtime is not None
+        ex = self._repo.get_execution(step.execution_id)
+        if ex is None:
+            raise OrchestrationError(f"missing execution {step.execution_id}")
+        ctx = self._repo.get_context(ex.execution_context_id)
+        if ctx is None:
+            raise OrchestrationError(f"missing context {ex.execution_context_id}")
+        ex_in = step.input.get("execution_input")
+        if not isinstance(ex_in, dict):
+            ex_in = {}
+        scope_id = self._scope_id_from_input(ex_in)
+        service = str(ex_in.get("service_id") or ex_in.get("service") or "")
+
+        tool_calls: list[ToolCall] = []
+        tool_rt = self._tool_runtime.with_cancel_check(self._cancellation_check(step.execution_id))
+        tool_input: dict[str, Any] = {"scope_id": scope_id}
+        if service:
+            tool_input["service"] = service
+        for tool_name in ("cloud_cost_tool", "metrics_lookup_tool"):
+            t_req = ToolInvokeRequest(
+                execution_id=step.execution_id,
+                step_id=step.step_id,
+                execution_context_id=ctx.context_id,
+                tool_name=tool_name,
+                input=dict(tool_input),
+            )
+            tc = tool_rt.invoke(t_req, now=now)
+            self._repo.save_tool_call(tc)
+            tool_calls.append(tc)
+            ex_t = self._repo.get_execution(step.execution_id)
+            if ex_t:
+                ex_t = _append_timeline(
+                    ex_t,
+                    "tool_call_completed",
+                    {
+                        "step_id": str(step.step_id),
+                        "tool_call_id": str(tc.tool_call_id),
+                        "tool_name": tc.tool_name,
+                        "status": tc.status.value,
+                        "latency_ms": tc.latency_ms,
+                        "workflow_type": "cost_attribution",
+                    },
+                    now,
+                )
+                self._repo.update_execution(ex_t)
+
+        by_name = {tc.tool_name: tc for tc in tool_calls}
+        cost_tc = by_name.get("cloud_cost_tool")
+        metrics_tc = by_name.get("metrics_lookup_tool")
+        cost_out = cost_tc.output if cost_tc and isinstance(cost_tc.output, dict) else {}
+        metrics_out = metrics_tc.output if metrics_tc and isinstance(metrics_tc.output, dict) else {}
+        signals: list[dict[str, Any]] = []
+        raw_sig = metrics_out.get("signals")
+        if isinstance(raw_sig, list):
+            signals = [dict(x) for x in raw_sig if isinstance(x, dict)]
+
+        evidence: list[dict[str, Any]] = []
+        for tc in tool_calls:
+            evidence.append(
+                {
+                    "type": "tool_invocation",
+                    "tool_call_id": str(tc.tool_call_id),
+                    "tool_name": tc.tool_name,
+                    "status": tc.status.value,
+                },
+            )
+
+        summary_bits = [f"Correlated cost and usage for scope {scope_id}"]
+        if cost_out.get("daily_cost_usd") is not None:
+            summary_bits.append(f"daily_cost_usd={cost_out.get('daily_cost_usd')}")
+        if signals:
+            summary_bits.append(f"{len(signals)} usage signal(s)")
+
+        rid: ResultId = uuid4()
+        return StepResult(
+            step_result_id=rid,
+            step_id=step.step_id,
+            output={
+                "scope_id": scope_id,
+                "correlation_summary": "; ".join(summary_bits),
+                "tool_call_ids": [str(tc.tool_call_id) for tc in tool_calls],
+                "cost_snapshot": dict(cost_out),
+                "usage_signals": signals,
+            },
+            evidence=evidence,
+            errors=[],
+            latency_ms=1,
+            latency_started_at=now,
+            latency_ended_at=now,
+            confidence_score=0.86,
+            confidence_detail={
+                "source": "correlate_usage_patterns",
+                "tools": [tc.tool_name for tc in tool_calls],
+            },
+            completeness=StepCompleteness.FULL,
+            validation_outcome=None,
+            created_at=now,
+            updated_at=now,
+        )
+
     def _run_step(self, step: Step, now: datetime) -> None:
         fresh = self._repo.get_step(step.step_id)
         if fresh is None:
@@ -748,9 +1162,19 @@ class ExecutionEngine:
             self._repo.update_execution(ex)
 
         if self._should_use_tooling_for_step(running):
-            result = self._gather_evidence_via_services(running, now)
+            step_name = running.input.get("planner_step_name")
+            if running.input.get("workflow_type") == "cost_attribution":
+                if step_name == "retrieve_cost_evidence":
+                    result = self._retrieve_cost_evidence_via_services(running, now)
+                else:
+                    result = self._correlate_usage_via_tools(running, now)
+            else:
+                result = self._gather_evidence_via_services(running, now)
         elif self._should_use_model_for_step(running):
-            result = self._incident_model_reasoning_step(running, now)
+            if running.input.get("workflow_type") == "cost_attribution":
+                result = self._cost_model_reasoning_step(running, now)
+            else:
+                result = self._incident_model_reasoning_step(running, now)
         else:
             result = self._executor.execute_step(running)
         self._repo.save_step_result(result)
@@ -787,7 +1211,7 @@ class ExecutionEngine:
 
     def _build_completion_result(self, execution: Execution, steps: list[Step]) -> dict[str, Any]:
         """Workflow-specific terminal result; generic workflows keep a minimal success payload."""
-        if execution.workflow_type != "incident_triage":
+        if execution.workflow_type not in ("incident_triage", "cost_attribution"):
             return {"outcome": "success", "steps": len(steps)}
         by_name: dict[str, dict[str, Any]] = {}
         for s in steps:
@@ -797,6 +1221,31 @@ class ExecutionEngine:
             res = self._repo.get_step_result(s.step_id)
             if res is not None and isinstance(res.output, dict):
                 by_name[name] = dict(res.output)
+        if execution.workflow_type == "cost_attribution":
+            analyze = by_name.get("analyze_cost_anomaly", {})
+            retrieve = by_name.get("retrieve_cost_evidence", {})
+            correlate = by_name.get("correlate_usage_patterns", {})
+            validate = by_name.get("validate_cost_attribution", {})
+            conf = validate.get("confidence")
+            conf_f = float(conf) if isinstance(conf, (int, float)) else None
+            return {
+                "outcome": "success",
+                "workflow_type": "cost_attribution",
+                "suspected_service": analyze.get("suspected_service"),
+                "suspected_team": analyze.get("suspected_team"),
+                "anomaly_type": analyze.get("anomaly_type"),
+                "estimated_cost_impact_usd": analyze.get("estimated_cost_impact_usd"),
+                "attribution_summary": analyze.get("attribution_summary"),
+                "evidence_summary": retrieve.get("evidence_summary"),
+                "correlation_summary": correlate.get("correlation_summary"),
+                "validation_status": validate.get("validation_status"),
+                "confidence": conf_f,
+                "likely_service": validate.get("likely_service"),
+                "recommended_actions": validate.get("recommended_actions"),
+                "optimization_candidates": analyze.get("optimization_candidates"),
+                "steps": len(steps),
+            }
+
         analyze = by_name.get("analyze_incident", {})
         gather = by_name.get("gather_evidence", {})
         validate = by_name.get("validate_incident", {})

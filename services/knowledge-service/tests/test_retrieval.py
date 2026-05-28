@@ -37,3 +37,34 @@ def test_retrieval_metadata_includes_tenant_workflow() -> None:
     )
     assert r.metadata.get("tenant_id") == "acme"
     assert r.metadata.get("workflow_type") == "incident_triage"
+
+
+def test_evidence_chunk_includes_document_and_metadata() -> None:
+    svc = KnowledgeService()
+    r = svc.retrieve(
+        RetrievalRequest(
+            tenant_id="t",
+            workflow_type="cost_attribution",
+            query="cost billing spend anomaly",
+            max_results=2,
+        ),
+    )
+    assert r.chunks
+    ch = r.chunks[0]
+    assert ch.document_id
+    assert ch.score is not None
+    assert isinstance(ch.metadata, dict)
+
+
+def test_corpus_version_filter() -> None:
+    svc = KnowledgeService(corpus_version="phase5_local_v1")
+    r = svc.retrieve(
+        RetrievalRequest(
+            tenant_id="t",
+            workflow_type="cost_attribution",
+            query="optimization rightsizing cost",
+            corpus_version="phase5_local_v1",
+            max_results=3,
+        ),
+    )
+    assert r.corpus_version == "phase5_local_v1"

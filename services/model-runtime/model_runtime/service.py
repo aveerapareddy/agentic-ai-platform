@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from common_schemas import (
+    CostAttributionAnalysisModelRequest,
+    CostAttributionValidationModelRequest,
     IncidentAnalysisModelRequest,
     IncidentValidationModelRequest,
 )
@@ -44,3 +46,15 @@ class ModelRuntimeService:
         request: IncidentValidationModelRequest,
     ) -> ReasoningCallResult:
         return self._client.validate_incident(request)
+
+    def analyze_cost_anomaly(
+        self,
+        request: CostAttributionAnalysisModelRequest,
+    ) -> ReasoningCallResult:
+        return self._client.analyze_cost_anomaly(request)
+
+    def validate_cost_attribution(
+        self,
+        request: CostAttributionValidationModelRequest,
+    ) -> ReasoningCallResult:
+        return self._client.validate_cost_attribution(request)

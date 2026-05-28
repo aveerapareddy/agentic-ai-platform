@@ -43,10 +43,27 @@ def test_planner_incident_triage_three_steps() -> None:
     assert plan.dependencies[1]["from_step"] == keys[1] and plan.dependencies[1]["to_step"] == keys[2]
 
 
-def test_planner_default_two_steps() -> None:
-    """Non-incident workflows: reasoning then validation."""
+def test_planner_cost_attribution_four_steps() -> None:
     p = Planner()
     plan = p.create_plan(_minimal_execution("cost_attribution"))
+    assert plan.plan_version == 1
+    assert len(plan.steps) == 4
+    names = [s["step_name"] for s in plan.steps]
+    assert names == [
+        "analyze_cost_anomaly",
+        "retrieve_cost_evidence",
+        "correlate_usage_patterns",
+        "validate_cost_attribution",
+    ]
+    kinds = [s["kind"] for s in plan.steps]
+    assert kinds == ["reasoning", "retrieval", "tool", "validation"]
+    assert len(plan.dependencies) == 3
+
+
+def test_planner_default_two_steps() -> None:
+    """Unknown workflows: reasoning then validation."""
+    p = Planner()
+    plan = p.create_plan(_minimal_execution("generic"))
     assert len(plan.steps) == 2
     assert plan.steps[0]["kind"] == "reasoning"
     assert plan.steps[1]["kind"] == "validation"

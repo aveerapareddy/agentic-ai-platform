@@ -29,7 +29,7 @@ from common_schemas.tooling import ToolCall
 from common_schemas.workflow import ExecutionPlan
 
 
-REGISTERED_WORKFLOW_TYPES = frozenset({"incident_triage", "generic"})
+REGISTERED_WORKFLOW_TYPES = frozenset({"incident_triage", "cost_attribution", "generic"})
 
 
 def _dump_model(m: Any) -> dict[str, Any]:

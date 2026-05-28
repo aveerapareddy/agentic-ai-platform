@@ -33,6 +33,13 @@ from .ids import (
     StepId,
     ToolCallId,
 )
+from .cost_attribution import (
+    CostAttributionAnalysisModelRequest,
+    CostAttributionReasoningOutput,
+    CostAttributionValidationModelRequest,
+    CostEvidenceSummary,
+    CostValidationOutput,
+)
 from .knowledge import EvidenceChunk, RetrievalRequest, RetrievalResponse
 from .mukti_input import MuktiAnalysisInput, StepRunRecord
 from .replay_diff import (
@@ -96,6 +103,11 @@ __all__ = [
     "ApprovalDecision",
     "ApprovalId",
     "ContextId",
+    "CostAttributionAnalysisModelRequest",
+    "CostAttributionReasoningOutput",
+    "CostAttributionValidationModelRequest",
+    "CostEvidenceSummary",
+    "CostValidationOutput",
     "Execution",
     "ExecutionContext",
     "ExecutionFeedback",

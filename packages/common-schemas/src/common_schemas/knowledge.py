@@ -19,6 +19,10 @@ class RetrievalRequest(BaseModel):
     query: str
     max_results: int = Field(default=5, ge=1, le=50)
     filters: dict[str, Any] = Field(default_factory=dict)
+    corpus_version: str | None = Field(
+        default=None,
+        description="Optional corpus snapshot label; when set, retrieval is scoped to that version.",
+    )
     correlation_request_id: str | None = Field(
         default=None,
         description="Optional execution_context.request_id for audit correlation.",
@@ -31,10 +35,13 @@ class EvidenceChunk(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     chunk_id: str
+    document_id: str | None = Field(default=None, max_length=128)
     source_uri: str
     title: str | None = None
     text_excerpt: str
     score: float | None = Field(default=None, ge=0.0, le=1.0)
+    corpus_version: str | None = Field(default=None, max_length=64)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class RetrievalResponse(BaseModel):

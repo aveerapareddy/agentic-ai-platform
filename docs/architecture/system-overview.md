@@ -87,7 +87,7 @@ The platform is **not** one monolith: the **orchestrator** coordinates but does 
 | | |
 |--|--|
 | **Primary responsibility** | Retrieval over corpora with tenant and workflow-aware access; return citable chunks for **Step Result** evidence. |
-| **Owns** | Indexes, embedding pipelines (if used), retrieval APIs—not the orchestrator’s step scheduler. |
+| **Owns** | Document ingestion/chunking, corpus versioning, metadata-filtered retrieval APIs—not the orchestrator’s step scheduler. |
 | **Must not own** | Execution lifecycle or policy decisions. |
 | **Reads/writes** | Knowledge artifacts and indexes; optional query logs. |
 | **Callers** | **orchestrator**; optionally read-only internal analytics (deployment-defined). |
@@ -226,7 +226,7 @@ The model-runtime isolates all model inference behind a bounded service contract
 
 #### Interaction model
 
-- Called by orchestrator only for specific step types (e.g., analyze_incident, validate_incident)
+- Called by orchestrator only for specific step types (e.g., analyze_incident, validate_incident, analyze_cost_anomaly, validate_cost_attribution)
 - Returns bounded reasoning outputs mapped into StepResult
 - Orchestrator decides whether to use model-runtime or deterministic fallback
 

@@ -1,6 +1,6 @@
 # Data flow
 
-One-line purpose: end-to-end data flow for **`incident_triage`** as implemented—complementing [system-overview.md](system-overview.md) interaction tables.
+One-line purpose: end-to-end data flow for **`incident_triage`** and **`cost_attribution`** as implemented—complementing [system-overview.md](system-overview.md) interaction tables.
 
 ## 1. Execution creation
 
@@ -37,7 +37,20 @@ For `incident_triage`, after all steps **SUCCEEDED** in **VALIDATING**, orchestr
 
 No external ticket system is called; effects are **recorded** only.
 
-## 7. Post-execution feedback and Mukti
+## 7. Cost attribution (`cost_attribution`)
+
+Same lifecycle semantics as incident triage (plan → execute → validate → complete) without post-validation escalation governance.
+
+| Step | Data flow |
+|------|-----------|
+| `analyze_cost_anomaly` | Orchestrator → **model-runtime** `CostAttributionAnalysisModelRequest` → structured analyze output; fallback → **StepExecutor**. |
+| `retrieve_cost_evidence` | Orchestrator → **knowledge-service** `retrieve` (filters, optional `corpus_version`) → chunks in **step_results** + `knowledge_retrieved` trace. |
+| `correlate_usage_patterns` | Orchestrator → **tool-runtime** `cloud_cost_tool`, `metrics_lookup_tool` → **tool_calls** + `tool_call_completed` trace. |
+| `validate_cost_attribution` | Orchestrator → **model-runtime** validation request incorporating prior step excerpts → `CostValidationOutput` + **ValidationOutcome**; **VALIDATING** → **COMPLETED**. |
+
+See [cost-attribution.md](../workflows/cost-attribution.md).
+
+## 8. Post-execution feedback and Mukti
 
 **Not** on the completion critical path. A separate sequence:
 

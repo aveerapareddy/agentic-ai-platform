@@ -18,6 +18,7 @@ from common_schemas import (
 )
 
 _INCIDENT_TRIAGE = "incident_triage"
+_COST_ATTRIBUTION = "cost_attribution"
 
 
 class StepExecutor:
@@ -36,6 +37,8 @@ class StepExecutor:
         step_name = step.input.get("planner_step_name")
         if workflow_type == _INCIDENT_TRIAGE and isinstance(step_name, str):
             return self._execute_incident_triage_step(step, step_name, ts, started, ended)
+        if workflow_type == _COST_ATTRIBUTION and isinstance(step_name, str):
+            return self._execute_cost_attribution_step(step, step_name, ts, started, ended)
 
         return self._execute_generic_step(step, ts, started, ended)
 
@@ -130,6 +133,112 @@ class StepExecutor:
             confidence_score=confidence,
             confidence_detail={
                 "source": "step_executor_incident_triage",
+                "step_name": step_name,
+            },
+            completeness=StepCompleteness.FULL,
+            validation_outcome=vo,
+            created_at=ts,
+            updated_at=ts,
+        )
+
+    def _execute_cost_attribution_step(
+        self,
+        step: Step,
+        step_name: str,
+        ts: datetime,
+        started: datetime,
+        ended: datetime,
+    ) -> StepResult:
+        ex_in = step.input.get("execution_input")
+        if not isinstance(ex_in, dict):
+            ex_in = {}
+        scope_key = str(ex_in.get("scope_id") or ex_in.get("billing_scope_id") or ex_in.get("id", "unknown"))
+        seed = hashlib.sha256(scope_key.encode()).hexdigest()[:8]
+        digest = hashlib.sha256(
+            json.dumps(
+                {"step_name": step_name, "scope_key": scope_key, "simulated": True},
+                sort_keys=True,
+            ).encode(),
+        ).hexdigest()[:16]
+        services_pool = ["payments-api", "data-pipeline", "search-index"]
+        teams_pool = ["platform", "finops", "data"]
+        idx = int(seed[:2], 16) % len(services_pool)
+
+        if step_name == "analyze_cost_anomaly":
+            output: dict[str, object] = {
+                "suspected_service": services_pool[idx],
+                "suspected_team": teams_pool[idx % len(teams_pool)],
+                "anomaly_type": "spend_spike",
+                "estimated_cost_impact_usd": round(50.0 + int(seed[2:4], 16), 2),
+                "attribution_summary": (
+                    f"Scope {scope_key}: spend anomaly vs trailing baseline (digest {digest})"
+                ),
+                "optimization_candidates": ["rightsizing", "reserved_capacity_review"],
+                "evidence_references": [f"sim-cost:{digest}"],
+            }
+            confidence = 0.83
+            vo = None
+        elif step_name == "retrieve_cost_evidence":
+            output = {
+                "scope_id": scope_key,
+                "evidence_summary": (
+                    f"Simulated billing and cost playbook retrieval for {scope_key} (seed {seed})"
+                ),
+                "chunk_ids": [f"cost-sim-{seed}"],
+                "corpus_version": "phase5_local_v1",
+            }
+            confidence = 0.8
+            vo = None
+        elif step_name == "correlate_usage_patterns":
+            output = {
+                "scope_id": scope_key,
+                "correlation_summary": f"Simulated cloud_cost and metrics correlation for {scope_key}",
+                "cost_snapshot": {"daily_cost_usd": round(40.0 + int(seed[4:6], 16), 2)},
+                "usage_signals": [{"source": "metrics", "name": "cpu_utilization", "detail": f"ref:{digest}"}],
+            }
+            confidence = 0.82
+            vo = None
+        elif step_name == "validate_cost_attribution":
+            val_status = "passed"
+            conf = 0.9
+            output = {
+                "validation_status": val_status,
+                "confidence": conf,
+                "likely_service": services_pool[idx],
+                "likely_team": teams_pool[idx % len(teams_pool)],
+                "recommended_actions": ["enable_budget_alerts"],
+                "digest": digest,
+            }
+            confidence = conf
+            vo = ValidationOutcome(
+                status=val_status,
+                details={"likely_service": services_pool[idx], "scope_key": scope_key, "simulated": True},
+            )
+        else:
+            output = {"error": "unknown_planner_step_name", "step_name": step_name}
+            confidence = 0.0
+            vo = ValidationOutcome(status="failed", details={"reason": "unknown_step_name"})
+
+        rid: ResultId = uuid4()
+        evidence = [
+            {
+                "type": "simulated_cost_attribution",
+                "step_name": step_name,
+                "ref": f"cost_attribution:{digest}",
+            },
+        ]
+        return StepResult(
+            step_result_id=rid,
+            step_id=step.step_id,
+            output=output,
+            evidence=evidence,
+            errors=[],
+            latency_ms=1,
+            latency_started_at=started,
+            latency_ended_at=ended,
+            confidence_score=confidence,
+            confidence_detail={
+                "source": "step_executor_cost_attribution",
                 "step_name": step_name,
             },
             completeness=StepCompleteness.FULL,

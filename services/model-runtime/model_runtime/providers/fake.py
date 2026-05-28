@@ -8,6 +8,10 @@ import time
 from uuid import uuid4
 
 from common_schemas import (
+    CostAttributionAnalysisModelRequest,
+    CostAttributionReasoningOutput,
+    CostAttributionValidationModelRequest,
+    CostValidationOutput,
     IncidentAnalysisModelRequest,
     IncidentAnalysisReasoningOutput,
     IncidentValidationModelRequest,
@@ -82,6 +86,72 @@ class FakeStructuredProvider:
             validation_status="passed",
             confidence_score=0.91,
             rationale_short="Fake provider: bounded consistency with prior causes list.",
+            digest=digest,
+            model_invocation_id=inv,
+            provider_label=_FAKE_PROVIDER_LABEL,
+            invocation=telemetry,
+        )
+        return ReasoningCallResult(output=out, telemetry=telemetry)
+
+    def analyze_cost_anomaly(
+        self,
+        request: CostAttributionAnalysisModelRequest,
+    ) -> ReasoningCallResult[CostAttributionReasoningOutput]:
+        started = time.perf_counter()
+        payload = json.dumps({"scope_id": request.scope_id, "task": "analyze_cost"}, sort_keys=True)
+        digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+        inv = str(uuid4())
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        telemetry = ModelInvocationTelemetry(
+            latency_ms=latency_ms,
+            retry_count=0,
+            provider_type=self.provider_type,
+            model_name="fake",
+        )
+        svc_suffix = request.scope_id[-4:] if len(request.scope_id) >= 4 else "svc"
+        out = CostAttributionReasoningOutput(
+            suspected_service=f"svc-{svc_suffix}",
+            suspected_team="finops",
+            anomaly_type="spend_spike",
+            estimated_cost_impact_usd=round(120.0 + (int(digest[:4], 16) % 80), 2),
+            attribution_summary=(
+                f"[model:{_FAKE_PROVIDER_LABEL}] Scope {request.scope_id}: spend anomaly vs baseline "
+                f"(digest {digest})"
+            ),
+            optimization_candidates=["rightsizing", "idle_resource_cleanup"],
+            evidence_references=[f"cost-model:{digest}"],
+            model_invocation_id=inv,
+            provider_label=_FAKE_PROVIDER_LABEL,
+            invocation=telemetry,
+        )
+        return ReasoningCallResult(output=out, telemetry=telemetry)
+
+    def validate_cost_attribution(
+        self,
+        request: CostAttributionValidationModelRequest,
+    ) -> ReasoningCallResult[CostValidationOutput]:
+        started = time.perf_counter()
+        payload = json.dumps(
+            {"scope_id": request.scope_id, "prior": request.prior_attribution_summary},
+            sort_keys=True,
+        )
+        digest = hashlib.sha256(payload.encode()).hexdigest()[:16]
+        inv = str(uuid4())
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        telemetry = ModelInvocationTelemetry(
+            latency_ms=latency_ms,
+            retry_count=0,
+            provider_type=self.provider_type,
+            model_name="fake",
+        )
+        conf = 0.88
+        out = CostValidationOutput(
+            validation_status="passed",
+            confidence=conf,
+            likely_service=f"svc-{request.scope_id[-4:]}" if len(request.scope_id) >= 4 else "svc-unknown",
+            likely_team="finops",
+            rationale_short="Fake provider: attribution consistent with billing and usage evidence.",
+            recommended_actions=["review_reserved_capacity", "enable_cost_anomaly_alerts"],
             digest=digest,
             model_invocation_id=inv,
             provider_label=_FAKE_PROVIDER_LABEL,

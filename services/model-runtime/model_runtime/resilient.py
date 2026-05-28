@@ -6,6 +6,8 @@ import time
 from typing import Any, Callable, TypeVar
 
 from common_schemas import (
+    CostAttributionAnalysisModelRequest,
+    CostAttributionValidationModelRequest,
     IncidentAnalysisModelRequest,
     IncidentAnalysisReasoningOutput,
     IncidentValidationModelRequest,
@@ -64,10 +66,33 @@ class ResilientStructuredProvider:
             lambda: self._inner.validate_incident(request),
         )
 
+    def analyze_cost_anomaly(
+        self,
+        request: CostAttributionAnalysisModelRequest,
+    ) -> Any:
+        return self._call_with_retries(
+            "analyze_cost_anomaly",
+            request,
+            lambda: self._inner.analyze_cost_anomaly(request),
+        )
+
+    def validate_cost_attribution(
+        self,
+        request: CostAttributionValidationModelRequest,
+    ) -> Any:
+        return self._call_with_retries(
+            "validate_cost_attribution",
+            request,
+            lambda: self._inner.validate_cost_attribution(request),
+        )
+
     def _call_with_retries(
         self,
         task: str,
-        request: IncidentAnalysisModelRequest | IncidentValidationModelRequest,
+        request: IncidentAnalysisModelRequest
+        | IncidentValidationModelRequest
+        | CostAttributionAnalysisModelRequest
+        | CostAttributionValidationModelRequest,
         fn: Callable[[], Any],
     ) -> Any:
         max_attempts = max(1, self._config.max_retries + 1)

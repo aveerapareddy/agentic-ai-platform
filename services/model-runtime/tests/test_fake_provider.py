@@ -5,6 +5,8 @@ from __future__ import annotations
 from uuid import uuid4
 
 from common_schemas import (
+    CostAttributionAnalysisModelRequest,
+    CostAttributionValidationModelRequest,
     IncidentAnalysisModelRequest,
     IncidentValidationModelRequest,
 )
@@ -47,6 +49,39 @@ def test_fake_validate_picks_from_prior_causes() -> None:
     assert out.validation_status == "passed"
     assert 0.0 <= out.confidence_score <= 1.0
     assert out.digest
+
+
+def test_fake_cost_analyze_structure() -> None:
+    p = FakeStructuredProvider()
+    result = p.analyze_cost_anomaly(
+        CostAttributionAnalysisModelRequest(
+            execution_id=uuid4(),
+            step_id=uuid4(),
+            scope_id="scope-42",
+            execution_input_excerpt={"region": "us-east-1"},
+        ),
+    )
+    out = result.output
+    assert out.suspected_service
+    assert out.anomaly_type == "spend_spike"
+    assert out.estimated_cost_impact_usd >= 0.0
+    assert out.provider_label == "fake_structured_v1"
+
+
+def test_fake_cost_validate_structure() -> None:
+    p = FakeStructuredProvider()
+    result = p.validate_cost_attribution(
+        CostAttributionValidationModelRequest(
+            execution_id=uuid4(),
+            step_id=uuid4(),
+            scope_id="scope-42",
+            prior_attribution_summary="spend spike on payments-api",
+        ),
+    )
+    out = result.output
+    assert out.validation_status == "passed"
+    assert 0.0 <= out.confidence <= 1.0
+    assert out.recommended_actions
 
 
 def test_service_defaults_to_fake() -> None:

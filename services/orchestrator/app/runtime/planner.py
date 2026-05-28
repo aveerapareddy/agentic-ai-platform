@@ -9,6 +9,7 @@ from uuid import uuid4
 from common_schemas import Execution, ExecutionPlan, PlanId
 
 _INCIDENT_TRIAGE = "incident_triage"
+_COST_ATTRIBUTION = "cost_attribution"
 
 
 class Planner:
@@ -23,6 +24,8 @@ class Planner:
         plan_id: PlanId = uuid4()
         if execution.workflow_type == _INCIDENT_TRIAGE:
             return self._plan_incident_triage(execution, plan_id, ts)
+        if execution.workflow_type == _COST_ATTRIBUTION:
+            return self._plan_cost_attribution(execution, plan_id, ts)
         return self._plan_default(execution, plan_id, ts)
 
     def _plan_incident_triage(self, execution: Execution, plan_id: PlanId, ts: datetime) -> ExecutionPlan:
@@ -58,6 +61,66 @@ class Planner:
         ]
         ordering = {"sequential_groups": [[analyze_k, gather_k, validate_k]]}
         meta = {**dict(self._meta), "planner": "deterministic_incident_triage_v1"}
+
+        return ExecutionPlan(
+            plan_id=plan_id,
+            execution_id=execution.execution_id,
+            parent_plan_id=None,
+            plan_version=1,
+            revision_reason="initial_plan",
+            goal={
+                "workflow_type": execution.workflow_type,
+                "from_input_keys": list(execution.input.keys()),
+            },
+            steps=steps,
+            dependencies=dependencies,
+            ordering=ordering,
+            metadata=meta,
+            created_at=ts,
+        )
+
+    def _plan_cost_attribution(self, execution: Execution, plan_id: PlanId, ts: datetime) -> ExecutionPlan:
+        analyze_k = str(uuid4())
+        retrieve_k = str(uuid4())
+        correlate_k = str(uuid4())
+        validate_k = str(uuid4())
+        steps: list[dict[str, Any]] = [
+            {
+                "step_key": analyze_k,
+                "step_name": "analyze_cost_anomaly",
+                "kind": "reasoning",
+                "agent": "cost_analysis_agent_v1",
+                "degraded_allowed": False,
+            },
+            {
+                "step_key": retrieve_k,
+                "step_name": "retrieve_cost_evidence",
+                "kind": "retrieval",
+                "agent": "cost_retrieval_agent_v1",
+                "degraded_allowed": False,
+            },
+            {
+                "step_key": correlate_k,
+                "step_name": "correlate_usage_patterns",
+                "kind": "tool",
+                "agent": "cost_correlation_agent_v1",
+                "degraded_allowed": False,
+            },
+            {
+                "step_key": validate_k,
+                "step_name": "validate_cost_attribution",
+                "kind": "validation",
+                "agent": "cost_validation_agent_v1",
+                "degraded_allowed": False,
+            },
+        ]
+        dependencies = [
+            {"from_step": analyze_k, "to_step": retrieve_k},
+            {"from_step": retrieve_k, "to_step": correlate_k},
+            {"from_step": correlate_k, "to_step": validate_k},
+        ]
+        ordering = {"sequential_groups": [[analyze_k, retrieve_k, correlate_k, validate_k]]}
+        meta = {**dict(self._meta), "planner": "deterministic_cost_attribution_v1"}
 
         return ExecutionPlan(
             plan_id=plan_id,
