@@ -111,6 +111,7 @@ Gateway on **:8080**; Angular dev server on **:4200** with proxy to gateway (`pr
 | `make docker-seed` | Compose seed profile |
 | `make test` | Gateway + orchestrator tests |
 | `make health-smoke` | `GET /health/runtime` |
+| `make smoke-stack` | Health + authenticated `/v1/metrics` + executions list (+ optional console) |
 
 ## Orchestrator-only demo (no HTTP)
 
@@ -127,9 +128,10 @@ See [incident-workflow-demo.md](incident-workflow-demo.md).
 ## Health checks
 
 - **Postgres:** compose `pg_isready` healthcheck.
-- **api-gateway:** `GET /health/runtime` (model provider label); compose healthcheck uses this.
+- **api-gateway:** `GET /health/runtime` (model provider label); compose healthcheck uses this. Operational `GET /metrics` is unauthenticated (Prometheus counters including `policy_*`).
 - **operator-console:** nginx serves `/`; API health proxied at `/health/runtime`.
 - **SSE stream:** `GET /v1/executions/{id}/stream` (requires auth headers or dev fallback).
+- **Smoke:** after `make docker-up`, run `make smoke-stack` (set `SMOKE_SKIP_CONSOLE=1` if console is not running).
 
 ## Common failures
 

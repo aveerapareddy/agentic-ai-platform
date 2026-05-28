@@ -32,6 +32,7 @@ Stored **inputs**, **plan** revisions, **step** graph, **tool_call** inputs/outp
 
 - Structured JSON events to stdout (`model_request`, `model_retry`, `tool_invoke`, `replay_created`, `model_fallback`, etc.) with `execution_id` / `step_id` — **no raw prompts**.
 - In-memory counters and latency totals; Prometheus text via **`GET /metrics`** on api-gateway (not `/v1/metrics`, which serves evaluation aggregates).
+- **Policy-engine counters** (incremented on `evaluate_proposal` and `simulate_policy`, not in evaluation aggregates): `policy_evaluations_total`, `policy_decision_allow_total`, `policy_decision_deny_total`, `policy_decision_conditional_total`, `policy_simulations_total`.
 - OpenTelemetry-lite span helpers (`observability.span`) without an OTel SDK dependency.
 
 **Model-runtime** records token usage and latency on `ModelInvocationTelemetry` (trace `model_reasoning.invocation` and structured output metadata). Retries are bounded and classified (transient vs schema validation).

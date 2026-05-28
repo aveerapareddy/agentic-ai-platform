@@ -17,6 +17,7 @@ from common_schemas import (
 )
 
 from policy_engine.evaluator import PolicyEvaluationDraft, PolicyEvaluator
+from policy_engine.metrics import record_policy_evaluation, record_policy_simulation
 from policy_engine.rules import list_rule_descriptors, rule_pack_id
 
 
@@ -37,7 +38,9 @@ class PolicyEvaluationService:
         context: ExecutionContext,
         proposal: ActionProposal,
     ) -> PolicyEvaluationDraft:
-        return self._evaluator.evaluate(context=context, proposal=proposal)
+        draft = self._evaluator.evaluate(context=context, proposal=proposal)
+        record_policy_evaluation(draft.decision)
+        return draft
 
     def simulate_policy(
         self,
@@ -77,6 +80,8 @@ class PolicyEvaluationService:
             updated_at=now,
         )
         draft = self._evaluator.evaluate(context=context, proposal=proposal)
+        record_policy_simulation()
+        record_policy_evaluation(draft.decision)
         refs = [str(r.get("rule_id")) for r in draft.evaluated_rules if r.get("rule_id")]
         return PolicySimulateResult(
             decision=draft.decision,

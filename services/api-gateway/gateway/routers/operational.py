@@ -1,4 +1,8 @@
-"""Operational metrics and runtime health (not business /v1 APIs)."""
+"""Operational metrics and runtime health (not business /v1 APIs).
+
+Unauthenticated by design for local/dev probes and compose healthchecks.
+Production deployments should protect these paths at the edge (ingress/mTLS).
+"""
 
 from __future__ import annotations
 

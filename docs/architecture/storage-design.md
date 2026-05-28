@@ -34,3 +34,17 @@ No OLAP or warehouse integration. **Mukti** writes **execution_feedback** suitab
 ## Retention
 
 Not enforced in application code. Operators are expected to apply database retention and legal hold policies at deployment time.
+
+## Temporary metadata bridge fields
+
+Reserved keys inside `executions.input` (JSONB) until dedicated columns or tables exist. They are **not** part of the public HTTP create contract—clients must not send them on `POST /v1/executions`. Orchestrator and gateway may strip or reject overrides of reserved keys on replay.
+
+| Field | Owner | Purpose | Future migration | Public API contract |
+|-------|--------|---------|------------------|---------------------|
+| `__replay_provenance__` | **orchestrator** (`ReplayService`) | Lineage for replay children: source execution id, mode, label, reason, overrides metadata. Consumed by replay-diff and operator-console display. | Dedicated `replay_runs` (or similar) table with FK to parent/child executions; strip from `input` on read/write. | **No** — internal persistence bridge. Constant: `REPLAY_PROVENANCE_INPUT_KEY` in `common_schemas.execution`. |
+| `__orch_execution_mode__` | **orchestrator** (`PostgresRepository` / in-memory adapter) | Round-trip `execution_mode` (`interactive` / `background`) because `001_initial_schema.sql` has no `execution_mode` column. | Add `executions.execution_mode` column; stop writing this key. | **No** — set from gateway `execution_mode` on create only; not echoed as a stable client field. |
+| `__orch_runtime_meta__` | **orchestrator** (`app.runtime.runtime_meta`) | Worker queue and cancellation bridge: `queued_at`, `worker_id`, `cancellation_requested`, timestamps. | Columns or a small `execution_runtime` side table. | **No** — operator cancel flows set this via orchestrator/gateway, not via arbitrary client input. |
+
+**Why they exist:** ship durable behavior without blocking on schema migrations. **Risk:** keys must stay namespaced (`__…__`) and documented so workflow payloads never collide.
+
+**Gateway / UI:** may read provenance for display; must not treat bridge blobs as authoritative policy or trace data.

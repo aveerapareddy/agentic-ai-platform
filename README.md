@@ -84,8 +84,9 @@ Creates an `incident_triage` execution in memory and runs to completion. Does no
 
 ```bash
 make test                 # gateway + orchestrator unit tests
+make smoke-stack          # after stack is up: health + /v1/metrics + executions
 make migrate-dry-run      # list SQL migrations without applying
-python -m pytest scripts/tests -q   # migration/seed script smoke
+python -m pytest scripts/tests -q   # migration/seed/smoke script smoke
 ```
 
 PostgreSQL-backed tests are optional (`ORCHESTRATOR_TEST_DATABASE_URL`); see `app/tests/test_postgres_repository_integration.py`.

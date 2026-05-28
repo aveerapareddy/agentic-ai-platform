@@ -45,3 +45,7 @@ ApprovalsWriteDep = Annotated[
     Depends(require_any_role(Role.APPROVER, Role.ADMIN)),
 ]
 PoliciesAdminDep = Annotated[RequestContext, Depends(require_any_role(Role.ADMIN))]
+
+# Business metrics and insights (same read roles as executions/trace).
+MetricsReadDep = ExecutionsReadDep
+InsightsReadDep = ExecutionsReadDep

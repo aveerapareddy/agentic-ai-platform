@@ -10,10 +10,10 @@ Runnable code lives under **`gateway/`** (not `app/`) because the orchestrator a
 
 | Method | Path | Behavior |
 |--------|------|----------|
-| `GET` | `/metrics` | Prometheus text from in-memory operational registry (`platform-observability`). |
-| `GET` | `/health/runtime` | Lightweight runtime health including configured `model_provider`. |
+| `GET` | `/metrics` | Prometheus operational counters (`platform-observability`). **Unauthenticated** (local/dev probes; protect at ingress in production). |
+| `GET` | `/health/runtime` | Runtime health including `model_provider`. **Unauthenticated** (compose healthcheck). |
 
-Business evaluation aggregates remain under **`GET /v1/metrics`**.
+Business evaluation aggregates: **`GET /v1/metrics`** (requires `viewer`+ and tenant-scoped query).
 
 ## Implemented `/v1` routes
 

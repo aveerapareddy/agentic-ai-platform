@@ -29,3 +29,10 @@ def test_seed_module_has_main() -> None:
     mod = _load_module("seed_demo_data", root / "scripts" / "seed_demo_data.py")
     assert callable(mod.main)
     assert mod._TERMINAL
+
+
+def test_smoke_module_has_main() -> None:
+    root = Path(__file__).resolve().parents[2]
+    mod = _load_module("smoke_local_stack", root / "scripts" / "smoke_local_stack.py")
+    assert callable(mod.main)
+    assert callable(mod.check_gateway)

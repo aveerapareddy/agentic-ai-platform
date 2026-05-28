@@ -28,10 +28,14 @@ When headers are absent, `GATEWAY_ALLOW_DEV_PRINCIPAL_FALLBACK=true` (default) s
 
 | Capability | Roles |
 |------------|--------|
-| List/read executions, trace, replay diff | `viewer`, `operator`, `approver`, `admin` |
+| List/read executions, trace, replay diff, **SSE stream** | `viewer`, `operator`, `approver`, `admin` |
+| Read **business metrics** (`GET /v1/metrics`, per-execution metrics, anomalies insight) | `viewer`, `operator`, `approver`, `admin` |
+| Read **Mukti insights** (`GET /v1/insights/mukti*`) | `viewer`, `operator`, `approver`, `admin` |
 | Create executions, feedback, replay, cancel | `operator`, `admin` |
 | Submit approvals | `approver`, `admin` |
 | List policy rules, simulate policy | `admin` |
+
+**Operational endpoints (local/dev):** `GET /metrics` (Prometheus operational counters) and `GET /health/runtime` are **not** RBAC-protected in-process so Docker healthchecks and smoke scripts can probe the gateway without identity headers. **Production** must restrict these at ingress; do not expose them on the public internet without authentication.
 
 Denied requests return structured **403** with `error.code: FORBIDDEN`. Missing identity (fallback disabled) returns **401**.
 

@@ -8,7 +8,7 @@ DATABASE_URL ?= postgresql+psycopg://postgres:postgres@127.0.0.1:5432/agentic_de
 export DATABASE_URL
 
 .PHONY: help setup install-py install-js migrate migrate-dry-run seed test test-gateway test-orchestrator \
-	run-gateway run-console docker-up docker-down docker-seed health-smoke
+	run-gateway run-console docker-up docker-down docker-seed health-smoke smoke-stack
 
 help:
 	@echo "Targets:"
@@ -22,6 +22,7 @@ help:
 	@echo "  docker-seed    - run seed profile after stack is up"
 	@echo "  test           - gateway + orchestrator unit tests"
 	@echo "  health-smoke   - curl gateway /health/runtime"
+	@echo "  smoke-stack    - gateway health, /v1/metrics, executions list (optional console)"
 
 setup: install-py install-js
 
@@ -44,6 +45,9 @@ seed:
 
 health-smoke:
 	curl -sf $${GATEWAY_URL:-http://127.0.0.1:8080}/health/runtime | $(PYTHON) -m json.tool
+
+smoke-stack:
+	GATEWAY_URL=$${GATEWAY_URL:-http://127.0.0.1:8080} $(PYTHON) scripts/smoke_local_stack.py
 
 test: test-gateway test-orchestrator test-scripts
 
