@@ -50,9 +50,10 @@ import type { ExecutionMetricsDto } from '../../core/models/metrics.models';
         </dl>
 
         @if (metrics.computation_notes.length) {
-          <h3 class="oc-section-title" style="margin-top: var(--space-5)">Evaluation notes</h3>
+          <h3 class="oc-section-title" style="margin-top: var(--space-5)">Anomaly flags &amp; notes</h3>
           <p class="oc-meta" style="margin: calc(-1 * var(--space-2)) 0 var(--space-3)">
-            Server-provided notes (thresholds, caveats, or signal text). Not computed in the browser.
+            Server-provided explanations from evaluation-engine (derivation caveats, threshold signals). Not
+            computed in the browser.
           </p>
           <ul class="oc-notes-list">
             @for (n of metrics.computation_notes; track $index) {

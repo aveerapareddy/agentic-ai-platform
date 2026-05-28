@@ -7,14 +7,23 @@ Minimal **internal** Angular UI over **api-gateway** only ([system-overview.md](
 | Route | Purpose |
 |-------|---------|
 | `/executions` | List executions (`GET /v1/executions`), filters for `tenant_id`, `workflow_type`, `status`, client-side substring search on `execution_id`. |
-| `/executions/:executionId` | Detail (`GET /v1/executions/{id}`), trace (`GET /v1/executions/{id}/trace`), approval panel when `status === awaiting_approval` (`POST …/approvals`). |
+| `/executions/:executionId` | Detail (`GET /v1/executions/{id}`), trace (`GET /v1/executions/{id}/trace`), **evaluation metrics** (`GET /v1/executions/{id}/metrics`), approval panel when `status === awaiting_approval` (`POST …/approvals`). |
+| `/metrics` | Platform aggregates (`GET /v1/metrics`) — workflow, step-type, tool, and policy rollups from evaluation-engine via gateway. |
+| `/insights` | Mukti v2 cross-execution insights (`GET /v1/insights/mukti`) — advisory failure patterns, policy friction, ranked suggestions. |
 
 ## Components
 
 - **execution-list** — table of list items; row opens detail.
 - **execution-summary** — workflow, status, timestamps, result/governance/validation snippets (read-only projections).
+- **execution-metrics** — per-execution metrics section (server-computed only; loading / empty / error states).
 - **trace-timeline** — timeline events, steps, tool calls, policy evaluations, approvals (from trace payload).
 - **approval-panel** — approve/reject through gateway; reloads detail after success.
+
+## API layer
+
+- **execution-api.service** — executions, trace, approvals.
+- **metrics-api.service** — `GET /v1/executions/{id}/metrics`, `GET /v1/metrics` (thin HTTP only; no client-side metric computation).
+- **insights-api.service** — `GET /v1/insights/mukti` (thin HTTP only; no client-side insight computation).
 
 ## Run
 
@@ -35,11 +44,14 @@ Open `http://127.0.0.1:4200`. For production builds, set `API_BASE_URL` via a cu
 npm test
 ```
 
-Uses Karma with `builderMode: "application"` in `angular.json` so specs are discovered for the `application` build target (default `browser` mode runs **0** tests). Light coverage: HTTP service shape, routes, approval panel behavior.
+Uses Karma with `builderMode: "application"` in `angular.json`. Light coverage: metrics API shape, metrics page, execution detail metrics wiring, execution-metrics component, routes.
 
 ## Intentionally not in this phase
 
-- Metrics dashboards, Mukti insights UI, policy administration UI ([project-end-state.md](../../docs/overview/project-end-state.md) Phase 8 stubs).
+- Mukti insight detail drill-down UI (`GET /v1/insights/mukti/{id}` available via API; list page only for now).
+- Evaluation-engine anomaly page (`GET /v1/insights/anomalies` separate from Mukti v2).
+- Policy administration UI.
+- Charts, KPI widgets, or client-side metric recomputation.
 - Full enterprise auth (gateway placeholder only).
 - Feedback submission UI (gateway supports `POST …/feedback`; can be added later).
 - Replay UI.

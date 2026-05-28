@@ -42,7 +42,7 @@ import { shortExecutionId } from '../../core/ui/format-util';
         <app-approval-panel [execution]="execution" (decided)="reload()" />
         <app-execution-metrics
           [metrics]="metrics"
-          [loading]="false"
+          [loading]="metricsLoading"
           [error]="metricsError"
         />
         <app-execution-steps [trace]="trace" />
@@ -56,6 +56,7 @@ export class ExecutionDetailPage implements OnInit {
   execution: ExecutionDetail | null = null;
   trace: TraceView | null = null;
   metrics: ExecutionMetricsDto | null = null;
+  metricsLoading = false;
   metricsError: string | null = null;
   loading = true;
   loadError: string | null = null;
@@ -86,28 +87,41 @@ export class ExecutionDetailPage implements OnInit {
   reload(): void {
     this.loading = true;
     this.loadError = null;
+    this.metrics = null;
     this.metricsError = null;
+    this.metricsLoading = false;
     forkJoin({
       ex: this.api.getExecution(this.executionId),
       tr: this.api.getTrace(this.executionId).pipe(catchError(() => of(null))),
-      mx: this.metricsApi.getExecutionMetrics(this.executionId).pipe(
-        catchError(() => {
-          this.metricsError = 'Could not load evaluation metrics from api-gateway.';
-          return of(null);
-        }),
-      ),
     }).subscribe({
-      next: ({ ex, tr, mx }) => {
+      next: ({ ex, tr }) => {
         this.execution = ex;
         this.trace = tr;
-        this.metrics = mx;
         this.loading = false;
+        this.loadMetrics();
       },
       error: (e: Error) => {
         this.loading = false;
         this.loadError = e.message;
         this.execution = null;
         this.trace = null;
+        this.metrics = null;
+      },
+    });
+  }
+
+  private loadMetrics(): void {
+    if (!this.executionId) return;
+    this.metricsLoading = true;
+    this.metricsError = null;
+    this.metricsApi.getExecutionMetrics(this.executionId).subscribe({
+      next: (mx) => {
+        this.metrics = mx;
+        this.metricsLoading = false;
+      },
+      error: () => {
+        this.metricsLoading = false;
+        this.metricsError = 'Could not load evaluation metrics from api-gateway.';
         this.metrics = null;
       },
     });

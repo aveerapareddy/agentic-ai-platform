@@ -27,6 +27,12 @@ class FeedbackRepository(Protocol):
     def save_execution_feedback(self, record: ExecutionFeedback) -> None: ...
     def get_execution_feedback(self, feedback_id: UUID) -> ExecutionFeedback | None: ...
     def list_execution_feedback_for_execution(self, execution_id: UUID) -> list[ExecutionFeedback]: ...
+    def list_execution_feedback(
+        self,
+        *,
+        limit: int = 100,
+        execution_ids: list[UUID] | None = None,
+    ) -> list[ExecutionFeedback]: ...
 
 
 class InMemoryFeedbackRepository:
@@ -57,6 +63,19 @@ class InMemoryFeedbackRepository:
             (r for r in self._mukti.values() if r.execution_id == execution_id),
             key=lambda r: r.created_at,
         )
+
+    def list_execution_feedback(
+        self,
+        *,
+        limit: int = 100,
+        execution_ids: list[UUID] | None = None,
+    ) -> list[ExecutionFeedback]:
+        rows = list(self._mukti.values())
+        if execution_ids is not None:
+            allowed = set(execution_ids)
+            rows = [r for r in rows if r.execution_id in allowed]
+        rows.sort(key=lambda r: r.created_at, reverse=True)
+        return rows[: max(1, limit)]
 
 
 def _op_to_row(r: OperatorFeedback) -> OperatorFeedbackRow:
@@ -164,4 +183,17 @@ class PostgresFeedbackRepository:
                 .order_by(ExecutionFeedbackRow.created_at.asc())
             )
             rows = session.scalars(stmt).all()
+            return [_row_to_ef(r) for r in rows]
+
+    def list_execution_feedback(
+        self,
+        *,
+        limit: int = 100,
+        execution_ids: list[UUID] | None = None,
+    ) -> list[ExecutionFeedback]:
+        with self._session_factory() as session:
+            stmt = select(ExecutionFeedbackRow).order_by(ExecutionFeedbackRow.created_at.desc())
+            if execution_ids is not None:
+                stmt = stmt.where(ExecutionFeedbackRow.execution_id.in_(execution_ids))
+            rows = session.scalars(stmt).limit(max(1, limit)).all()
             return [_row_to_ef(r) for r in rows]

@@ -55,3 +55,12 @@ class FeedbackService:
 
     def list_execution_feedback_for_execution(self, execution_id: ExecutionId) -> list[ExecutionFeedback]:
         return self._repo.list_execution_feedback_for_execution(execution_id)
+
+    def list_execution_feedback(
+        self,
+        *,
+        limit: int = 100,
+        execution_ids: list[ExecutionId] | None = None,
+    ) -> list[ExecutionFeedback]:
+        """List persisted Mukti rows across executions; does not compute insights."""
+        return self._repo.list_execution_feedback(limit=limit, execution_ids=execution_ids)

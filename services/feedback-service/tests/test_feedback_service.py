@@ -50,3 +50,24 @@ def test_save_execution_feedback_roundtrip() -> None:
     assert len(got) == 1
     assert got[0].failure_types == ["test_signal"]
     assert got[0].advisory_confidence == pytest.approx(0.9)
+
+
+def test_list_execution_feedback_across_executions() -> None:
+    repo = InMemoryFeedbackRepository()
+    svc = FeedbackService(repository=repo)
+    now = datetime.now(timezone.utc)
+    e1, e2 = uuid4(), uuid4()
+    for eid, ft in ((e1, "a"), (e2, "b")):
+        svc.save_execution_feedback(
+            ExecutionFeedback(
+                feedback_id=uuid4(),
+                execution_id=eid,
+                failure_types=[ft],
+                created_at=now,
+            )
+        )
+    all_rows = svc.list_execution_feedback(limit=10)
+    assert len(all_rows) == 2
+    one = svc.list_execution_feedback(limit=10, execution_ids=[e1])
+    assert len(one) == 1
+    assert one[0].execution_id == e1

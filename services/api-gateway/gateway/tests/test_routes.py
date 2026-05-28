@@ -227,3 +227,29 @@ def test_get_anomalies_insight_shape() -> None:
         assert isinstance(data["anomalies"], list)
         for item in data["anomalies"]:
             assert set(item.keys()) >= {"code", "severity", "explanation", "evidence"}
+
+
+def test_get_mukti_insights_shape() -> None:
+    with _gateway() as (c, app):
+        r = c.get("/v1/insights/mukti", params={"tenant_id": "t-gateway", "limit": 20})
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert "scope_description" in data
+        assert "execution_feedback_sample_size" in data
+        assert "top_failure_types" in data
+        assert "recurring_patterns" in data
+        assert "policy_friction_areas" in data
+        assert "model_fallback_concentration" in data
+        assert "unstable_workflows_or_steps" in data
+        assert "ranked_improvement_suggestions" in data
+        assert "insights" in data
+        assert isinstance(data["insights"], list)
+
+
+def test_get_mukti_insight_by_id_not_found() -> None:
+    with _gateway() as (c, _app):
+        r = c.get(
+            "/v1/insights/mukti/00000000-0000-4000-8000-000000000099",
+            params={"tenant_id": "t-gateway"},
+        )
+        assert r.status_code == 404

@@ -32,6 +32,15 @@ from .ids import (
 )
 from .knowledge import EvidenceChunk, RetrievalRequest, RetrievalResponse
 from .mukti_input import MuktiAnalysisInput, StepRunRecord
+from .mukti_insights import (
+    CrossExecutionInsight,
+    InsightCategory,
+    InsightSeverity,
+    MuktiCrossExecutionInput,
+    MuktiInsightRef,
+    MuktiInsightsSummary,
+    RankedImprovementSuggestion,
+)
 from .reasoning import (
     IncidentAnalysisModelRequest,
     IncidentAnalysisReasoningOutput,
@@ -89,7 +98,14 @@ __all__ = [
     "FeedbackId",
     "FeedbackSource",
     "ImprovementSuggestion",
+    "CrossExecutionInsight",
+    "InsightCategory",
+    "InsightSeverity",
     "MuktiAnalysisInput",
+    "MuktiCrossExecutionInput",
+    "MuktiInsightRef",
+    "MuktiInsightsSummary",
+    "RankedImprovementSuggestion",
     "IncidentAnalysisModelRequest",
     "IncidentAnalysisReasoningOutput",
     "IncidentValidationModelRequest",

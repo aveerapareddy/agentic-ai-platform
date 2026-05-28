@@ -13,6 +13,8 @@ import { RouterLink, RouterOutlet } from '@angular/router';
           <a routerLink="/executions">Executions</a>
           <span class="oc-header__sep">·</span>
           <a routerLink="/metrics">Metrics</a>
+          <span class="oc-header__sep">·</span>
+          <a routerLink="/insights">Insights</a>
         </nav>
         <span class="oc-header__meta">Trace · Approvals · api-gateway</span>
       </header>

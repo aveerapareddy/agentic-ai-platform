@@ -45,4 +45,32 @@ describe('ExecutionMetricsComponent', () => {
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Loading metrics');
   });
+
+  it('shows server notes when computation_notes present', () => {
+    fixture.componentRef.setInput('metrics', {
+      execution_id: 'x',
+      workflow_type: 'generic',
+      execution_status: 'completed',
+      tenant_id: null,
+      model_reasoning_event_count: 0,
+      model_reasoning_fallback_event_count: 0,
+      model_fallback_rate: null,
+      validation_success: null,
+      validation_detail: null,
+      policy_decisions: [],
+      policy_outcome: null,
+      tool_calls_total: 0,
+      tool_calls_success: 0,
+      tool_success_rate: null,
+      step_latency_sum_ms: null,
+      wall_clock_ms: null,
+      total_latency_ms: null,
+      computation_notes: ['High model fallback rate for this execution.'],
+    });
+    fixture.componentRef.setInput('loading', false);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Anomaly flags');
+    expect(el.textContent).toContain('High model fallback rate');
+  });
 });

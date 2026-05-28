@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import { BehaviorSubject, of } from 'rxjs';
-import { routes } from '../../app.routes';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { of } from 'rxjs';
 import { ExecutionDetailPage } from './execution-detail.page';
 import { ExecutionApiService } from '../../core/api/execution-api.service';
 import { MetricsApiService } from '../../core/api/metrics-api.service';
@@ -10,7 +9,6 @@ describe('ExecutionDetailPage (metrics wiring)', () => {
   let fixture: ComponentFixture<ExecutionDetailPage>;
   let api: jasmine.SpyObj<ExecutionApiService>;
   let metricsApi: jasmine.SpyObj<MetricsApiService>;
-  const paramMap$ = new BehaviorSubject(convertToParamMap({ executionId: 'e1' }));
 
   beforeEach(async () => {
     api = jasmine.createSpyObj('ExecutionApiService', ['getExecution', 'getTrace']);
@@ -72,24 +70,24 @@ describe('ExecutionDetailPage (metrics wiring)', () => {
       providers: [
         { provide: ExecutionApiService, useValue: api },
         { provide: MetricsApiService, useValue: metricsApi },
-        { provide: ActivatedRoute, useValue: { paramMap: paramMap$.asObservable() } },
-        provideRouter(routes),
+        {
+          provide: ActivatedRoute,
+          useValue: { paramMap: of(convertToParamMap({ executionId: 'e1' })) },
+        },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(ExecutionDetailPage);
   });
 
-  it('renders evaluation metrics section and calls gateway metrics API', (done) => {
+  it('renders evaluation metrics section and calls gateway metrics API', async () => {
     fixture.detectChanges();
-    setTimeout(() => {
-      fixture.detectChanges();
-      const el = fixture.nativeElement as HTMLElement;
-      expect(el.textContent).toContain('Evaluation metrics');
-      expect(el.textContent).toContain('Model fallback rate');
-      expect(metricsApi.getExecutionMetrics).toHaveBeenCalledWith('e1');
-      expect(metricsApi.getExecutionMetrics).toHaveBeenCalledTimes(1);
-      done();
-    }, 10);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Evaluation metrics');
+    expect(el.textContent).toContain('Model fallback rate');
+    expect(metricsApi.getExecutionMetrics).toHaveBeenCalledWith('e1');
+    expect(metricsApi.getExecutionMetrics).toHaveBeenCalledTimes(1);
   });
 });
