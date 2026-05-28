@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"/><title>Trace</title><link rel="stylesheet" href="shared.css"/></head>
+<body><div class="shell">
+<nav class="nav"><h1>Operator</h1><a href="#" class="active">Executions</a></nav>
+<main class="main"><h1 class="page-title">Trace timeline</h1>
+<div class="panel">
+<div class="trace-step"><h3>analyze_incident <span class="badge badge-ok">succeeded</span></h3>
+<div class="event">model_reasoning · model_runtime · 12:00:00.25</div>
+<div class="event">step_completed · 12:00:00.30</div></div>
+<div class="trace-step"><h3>gather_evidence <span class="badge badge-ok">succeeded</span></h3>
+<div class="event">knowledge_retrieved · 2 chunks</div>
+<div class="event">tool_call_completed · incident_metadata_tool</div>
+<div class="event">tool_call_completed · signal_lookup_tool</div></div>
+<div class="trace-step"><h3>validate_incident <span class="badge badge-ok">succeeded</span></h3>
+<div class="event">validation_performed · passed</div>
+<div class="event">policy_evaluated · allow</div></div>
+</div></main></div></body></html>

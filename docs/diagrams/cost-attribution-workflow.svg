@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" font-family="Inter, system-ui, sans-serif">
+  <defs>
+    <style>
+      .bg { fill: #141518; }
+      .step { fill: #1e1f24; stroke: #34363e; }
+      .svc { fill: #1e1f24; stroke: #5b8def; stroke-width: 1; }
+      .t { fill: #ececef; font-size: 12px; }
+      .ts { fill: #8b8d96; font-size: 11px; }
+      .arr { stroke: #8b8d96; fill: none; marker-end: url(#m); }
+    </style>
+    <marker id="m" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#8b8d96"/></marker>
+  </defs>
+  <rect class="bg" width="900" height="440"/>
+  <text class="t" x="24" y="28" font-size="16" font-weight="600">Cost attribution workflow</text>
+  <rect class="step" x="40" y="60" width="150" height="44" rx="4"/><text class="t" x="52" y="88">analyze_cost_anomaly</text>
+  <rect class="step" x="220" y="60" width="170" height="44" rx="4"/><text class="t" x="232" y="88">retrieve_cost_evidence</text>
+  <rect class="step" x="420" y="60" width="180" height="44" rx="4"/><text class="t" x="432" y="88">correlate_usage_patterns</text>
+  <rect class="step" x="630" y="60" width="180" height="44" rx="4"/><text class="t" x="642" y="88">validate_cost_attribution</text>
+  <line class="arr" x1="190" y1="82" x2="220" y2="82"/>
+  <line class="arr" x1="390" y1="82" x2="420" y2="82"/>
+  <line class="arr" x1="600" y1="82" x2="630" y2="82"/>
+  <rect class="svc" x="40" y="140" width="130" height="40" rx="4"/><text class="t" x="58" y="165">model-runtime</text>
+  <rect class="svc" x="220" y="140" width="140" height="40" rx="4"/><text class="t" x="238" y="165">knowledge-service</text>
+  <rect class="svc" x="420" y="140" width="120" height="40" rx="4"/><text class="t" x="438" y="165">tool-runtime</text>
+  <rect class="svc" x="630" y="140" width="130" height="40" rx="4"/><text class="t" x="648" y="165">model-runtime</text>
+  <line class="arr" x1="115" y1="104" x2="105" y2="140"/>
+  <line class="arr" x1="305" y1="104" x2="290" y2="140"/>
+  <line class="arr" x1="510" y1="104" x2="480" y2="140"/>
+  <line class="arr" x1="720" y1="104" x2="695" y2="140"/>
+  <text class="ts" x="40" y="210">Tools: cloud_cost_tool, metrics_lookup_tool · Evidence: corpus chunks in step_result</text>
+  <text class="ts" x="40" y="230">Outputs: suspected service/team, anomaly type, optimization candidates (advisory strings)</text>
+  <text class="ts" x="40" y="250">No escalate_incident governance path  VALIDATING ’ COMPLETED</text>
+  <rect class="step" x="40" y="280" width="770" height="56" rx="4"/>
+  <text class="t" x="56" y="308">Trace: model_reasoning · knowledge_retrieved · tool_call_completed · validation_performed</text>
+  <text class="ts" x="56" y="326">Gateway allowlist: workflow_type=cost_attribution</text>
+</svg>

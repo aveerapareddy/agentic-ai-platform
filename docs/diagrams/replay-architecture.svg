@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" font-family="Inter, system-ui, sans-serif">
+  <defs>
+    <style>
+      .bg { fill: #141518; }
+      .box { fill: #1e1f24; stroke: #34363e; }
+      .t { fill: #ececef; font-size: 12px; }
+      .ts { fill: #8b8d96; font-size: 11px; }
+      .arr { stroke: #5b8def; fill: none; marker-end: url(#m); }
+    </style>
+    <marker id="m" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#5b8def"/></marker>
+  </defs>
+  <rect class="bg" width="900" height="420"/>
+  <text class="t" x="24" y="28" font-size="16" font-weight="600">Replay architecture</text>
+  <rect class="box" x="40" y="60" width="200" height="72" rx="4"/>
+  <text class="t" x="56" y="88">Source execution</text>
+  <text class="ts" x="56" y="108">trace, plan, steps, tools</text>
+  <rect class="box" x="320" y="60" width="220" height="88" rx="4"/>
+  <text class="t" x="336" y="88">POST /v1/executions/{id}/replay</text>
+  <text class="ts" x="336" y="108">exact | investigative</text>
+  <text class="ts" x="336" y="124">orchestrator ReplayService</text>
+  <rect class="box" x="600" y="60" width="240" height="88" rx="4"/>
+  <text class="t" x="616" y="88">Replay child execution</text>
+  <text class="ts" x="616" y="108">parent_execution_id</text>
+  <text class="ts" x="616" y="124">input.__replay_provenance__</text>
+  <line class="arr" x1="240" y1="96" x2="320" y2="96"/>
+  <line class="arr" x1="540" y1="96" x2="600" y2="96"/>
+  <rect class="box" x="120" y="200" width="280" height="64" rx="4"/>
+  <text class="t" x="136" y="228">Exact replay</text>
+  <text class="ts" x="136" y="248">Same business input; optional plan_id</text>
+  <rect class="box" x="480" y="200" width="300" height="64" rx="4"/>
+  <text class="t" x="496" y="228">Investigative replay</text>
+  <text class="ts" x="496" y="248">reason/label + input_overrides (sandbox)</text>
+  <rect class="box" x="200" y="300" width="500" height="72" rx="4"/>
+  <text class="t" x="216" y="328">GET /v1/executions/{source}/replay-diff/{replay}</text>
+  <text class="ts" x="216" y="348">ReplayDiffService  categories: plan, step, tool, policy, validation, &</text>
+  <line class="arr" x1="720" y1="148" x2="450" y2="300"/>
+  <line class="arr" x1="260" y1="148" x2="350" y2="300"/>
+</svg>

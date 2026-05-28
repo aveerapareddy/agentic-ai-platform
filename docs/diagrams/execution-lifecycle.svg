@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 400" font-family="Inter, system-ui, sans-serif">
+  <defs>
+    <style>
+      .bg { fill: #141518; }
+      .node { fill: #1e1f24; stroke: #34363e; stroke-width: 1; }
+      .gate { fill: #1e1f24; stroke: #5b8def; stroke-width: 1.5; }
+      .t { fill: #ececef; font-size: 12px; }
+      .ts { fill: #8b8d96; font-size: 11px; }
+      .arr { stroke: #8b8d96; fill: none; marker-end: url(#m); }
+    </style>
+    <marker id="m" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#8b8d96"/></marker>
+  </defs>
+  <rect class="bg" width="880" height="400"/>
+  <text class="t" x="24" y="28" font-size="16" font-weight="600">Execution lifecycle</text>
+  <text class="ts" x="24" y="48">Validation before terminal success; replay creates child with parent_execution_id</text>
+  <rect class="node" x="40" y="80" width="100" height="40" rx="4"/><text class="t" x="62" y="105">CREATED</text>
+  <rect class="node" x="170" y="80" width="100" height="40" rx="4"/><text class="t" x="182" y="105">PLANNING</text>
+  <rect class="node" x="300" y="80" width="110" height="40" rx="4"/><text class="t" x="312" y="105">EXECUTING</text>
+  <rect class="gate" x="430" y="80" width="110" height="40" rx="4"/><text class="t" x="442" y="105">VALIDATING</text>
+  <rect class="node" x="560" y="80" width="130" height="40" rx="4"/><text class="t" x="578" y="105">COMPLETED</text>
+  <rect class="node" x="560" y="160" width="90" height="40" rx="4"/><text class="t" x="578" y="185">FAILED</text>
+  <rect class="node" x="680" y="160" width="110" height="40" rx="4"/><text class="t" x="692" y="185">CANCELLED</text>
+  <rect class="node" x="430" y="200" width="150" height="40" rx="4"/><text class="t" x="448" y="225">AWAITING_APPROVAL</text>
+  <line class="arr" x1="140" y1="100" x2="170" y2="100"/>
+  <line class="arr" x1="270" y1="100" x2="300" y2="100"/>
+  <line class="arr" x1="410" y1="100" x2="430" y2="100"/>
+  <line class="arr" x1="540" y1="100" x2="560" y2="100"/>
+  <line class="arr" x1="485" y1="120" x2="485" y2="200"/>
+  <line class="arr" x1="505" y1="240" x2="578" y2="120"/>
+  <line class="arr" x1="485" y1="120" x2="578" y2="180"/>
+  <rect class="node" x="40" y="280" width="200" height="48" rx="4"/>
+  <text class="t" x="56" y="302">Source execution</text>
+  <text class="ts" x="56" y="318">completed / failed</text>
+  <rect class="node" x="280" y="280" width="200" height="48" rx="4"/>
+  <text class="t" x="296" y="302">Replay child</text>
+  <text class="ts" x="296" y="318">parent_execution_id + __replay_provenance__</text>
+  <line class="arr" x1="240" y1="304" x2="280" y2="304"/>
+  <text class="ts" x="24" y="360">Orchestrator owns transitions; policy-engine evaluates proposals; gateway does not drive lifecycle</text>
+</svg>

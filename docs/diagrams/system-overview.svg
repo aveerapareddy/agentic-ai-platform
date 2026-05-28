@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 520" font-family="Inter, system-ui, sans-serif">
+  <defs>
+    <style>
+      .bg { fill: #141518; }
+      .box { fill: #1e1f24; stroke: #34363e; stroke-width: 1; }
+      .trust { fill: none; stroke: #5b8def; stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .t { fill: #ececef; font-size: 13px; }
+      .ts { fill: #8b8d96; font-size: 11px; }
+      .arr { stroke: #8b8d96; fill: none; marker-end: url(#m); }
+      .arr-accent { stroke: #5b8def; fill: none; marker-end: url(#ma); }
+    </style>
+    <marker id="m" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#8b8d96"/></marker>
+    <marker id="ma" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#5b8def"/></marker>
+  </defs>
+  <rect class="bg" width="920" height="520"/>
+  <text class="t" x="24" y="32" font-size="16" font-weight="600">System overview  trust boundaries</text>
+  <rect class="trust" x="20" y="48" width="520" height="440" rx="8"/>
+  <text class="ts" x="32" y="68">Platform runtime (logical services; local stack: in-process behind api-gateway)</text>
+  <rect class="box" x="48" y="88" width="140" height="48" rx="4"/><text class="t" x="68" y="118">api-gateway</text>
+  <rect class="box" x="220" y="88" width="140" height="48" rx="4"/><text class="t" x="238" y="118">orchestrator</text>
+  <rect class="box" x="392" y="88" width="120" height="48" rx="4"/><text class="t" x="408" y="118">policy-engine</text>
+  <rect class="box" x="48" y="168" width="120" height="48" rx="4"/><text class="t" x="62" y="198">tool-runtime</text>
+  <rect class="box" x="188" y="168" width="140" height="48" rx="4"/><text class="t" x="200" y="198">knowledge-service</text>
+  <rect class="box" x="348" y="168" width="120" height="48" rx="4"/><text class="t" x="362" y="198">model-runtime</text>
+  <rect class="box" x="48" y="248" width="130" height="48" rx="4"/><text class="t" x="58" y="278">feedback-service</text>
+  <rect class="box" x="200" y="248" width="110" height="48" rx="4"/><text class="t" x="212" y="278">mukti-agent</text>
+  <rect class="box" x="330" y="248" width="130" height="48" rx="4"/><text class="t" x="342" y="278">evaluation-engine</text>
+  <rect class="box" x="200" y="340" width="160" height="48" rx="4"/><text class="t" x="232" y="370">PostgreSQL</text>
+  <line class="arr" x1="188" y1="112" x2="220" y2="112"/>
+  <line class="arr" x1="360" y1="112" x2="392" y2="112"/>
+  <line class="arr" x1="280" y1="136" x2="108" y2="168"/>
+  <line class="arr" x1="280" y1="136" x2="258" y2="168"/>
+  <line class="arr" x1="280" y1="136" x2="408" y2="168"/>
+  <line class="arr" x1="280" y1="136" x2="113" y2="248"/>
+  <line class="arr" x1="280" y1="364" x2="280" y2="296"/>
+  <rect class="box" x="600" y="120" width="160" height="56" rx="4"/>
+  <text class="t" x="620" y="146">operator-console</text>
+  <text class="ts" x="620" y="164">browser UI</text>
+  <line class="arr-accent" x1="600" y1="148" x2="188" y2="112"/>
+  <text class="ts" x="400" y="140">HTTP /v1 only</text>
+  <rect class="box" x="600" y="280" width="140" height="48" rx="4"/><text class="t" x="628" y="310">Clients / CI</text>
+  <line class="arr" x1="600" y1="304" x2="188" y2="112"/>
+</svg>

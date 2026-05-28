@@ -25,6 +25,30 @@ Operational work over many systems needs **bounded automation**: side effects an
 
 Deterministic scheduling and validation-before-success; policy and tools **not** embedded in the orchestrator’s rule set; **no** LangChain/LangGraph as the execution engine; trace materialized as timeline JSON on executions plus normalized rows (steps, results, tool calls, policy, approvals, feedback tables per migrations).
 
+### Architecture (at a glance)
+
+```text
+Clients / operator-console  →  api-gateway  →  orchestrator
+                                    │              ├── policy-engine
+                                    │              ├── tool-runtime
+                                    │              ├── knowledge-service
+                                    │              ├── model-runtime
+                                    │              └── feedback / Mukti / evaluation
+                                    └── PostgreSQL (durable mode)
+```
+
+Operator-console talks to **api-gateway only** (not orchestrator directly). Local Docker bundles runtime services in-process behind the gateway; logical boundaries remain in code.
+
+| Diagram | Description |
+|---------|-------------|
+| [System overview](docs/diagrams/system-overview.svg) | Services and trust boundaries |
+| [Execution lifecycle](docs/diagrams/execution-lifecycle.svg) | States, validation gate, replay lineage |
+| [Replay](docs/diagrams/replay-architecture.svg) | Source, child, provenance, diff |
+| [Streaming](docs/diagrams/streaming-architecture.svg) | SSE observational path |
+| [Cost workflow](docs/diagrams/cost-attribution-workflow.svg) | Planner steps and services |
+
+Editable sources: `docs/diagrams/*.drawio` (diagrams.net) and matching SVG exports.
+
 ## Repository map
 
 | Path | Purpose |
@@ -43,7 +67,10 @@ Deterministic scheduling and validation-before-success; policy and tools **not**
 | `infra/db/migrations/` | PostgreSQL DDL (`001_initial_schema.sql`, `002_operator_feedback.sql`) |
 | `scripts/` | Local migrations (`apply_migrations.py`), demo seed (`seed_demo_data.py`) |
 | `docker/` | Dockerfiles for gateway + console; `docker-compose.yml` local stack |
-| `evals/`, `examples/` | Present for future use |
+| `docs/assets/screenshots/` | Demo UI captures (regenerable from fixtures) |
+| `docs/diagrams/` | Architecture SVG + draw.io sources |
+| `docs/examples/` | Bounded trace and replay-diff samples |
+| `evals/` | Present for future use |
 
 ## Current implementation status
 
@@ -66,7 +93,36 @@ make docker-seed        # optional: seeded executions via real APIs
 
 Uses **`MODEL_PROVIDER=fake`** by default — no external LLM API keys. See [local development runbook](docs/runbooks/local-development.md).
 
+```bash
+make docker-seed      # incident + cost executions, replay, feedback
+make smoke-stack      # health + metrics + list smoke
+python scripts/capture_demo_screenshots.py   # regenerate UI screenshots from fixtures
+```
+
 Host-run alternative: `make setup`, `docker compose up -d postgres`, `make migrate`, then `make run-gateway` and `make run-console` in separate terminals.
+
+### Operator console (screenshots)
+
+Dark, information-dense UI over gateway APIs ([ui-system](docs/design/ui-system.md)):
+
+| View | Screenshot |
+|------|------------|
+| Execution explorer | ![Executions](docs/assets/screenshots/01-execution-explorer.png) |
+| Trace timeline | ![Trace](docs/assets/screenshots/03-trace-timeline.png) |
+| Replay diff | ![Replay diff](docs/assets/screenshots/04-replay-comparison.png) |
+| Policy simulate | ![Policies](docs/assets/screenshots/07-policy-simulation.png) |
+
+Full set: [docs/assets/screenshots/](docs/assets/screenshots/). Fixtures match seeded demo IDs; regenerate with `scripts/capture_demo_screenshots.py`.
+
+### Demo walkthroughs
+
+| Walkthrough | Focus |
+|-------------|--------|
+| [Incident triage](docs/workflows/incident-triage-walkthrough.md) | Analyze → evidence → validate → policy |
+| [Cost attribution](docs/workflows/cost-attribution-walkthrough.md) | Retrieval, tools, validation |
+| [Replay investigation](docs/workflows/replay-investigation-walkthrough.md) | Exact/investigative replay and diff |
+
+Example traces: [incident-trace.json](docs/examples/incident-trace.json), [cost-attribution-trace.json](docs/examples/cost-attribution-trace.json), [replay-diff-example.json](docs/examples/replay-diff-example.json).
 
 ## Orchestrator-only demo (no HTTP)
 

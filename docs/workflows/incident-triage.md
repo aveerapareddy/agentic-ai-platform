@@ -51,6 +51,6 @@ On **conditional**: `awaiting_approval` until `ExecutionService.submit_approval`
 
 ## Intentional simplifications
 
-- **api-gateway** is not implemented; callers use `ExecutionService` or tests.
 - Escalation is a **recorded proposal** and policy outcome, not a live ticket mutation.
+- Walkthrough with screenshots: [incident-triage-walkthrough.md](incident-triage-walkthrough.md).
 - **feedback-service** is not called from `ExecutionEngine`; operator feedback is wired in tests and would follow API design when gateway exists.

@@ -1,0 +1,12 @@
+<mxfile host="app.diagrams.net" agent="agentic-ai-platform" version="22.1.0" type="device">
+  <diagram id="execution-lifecycle" name="execution-lifecycle">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="880" pageHeight="400" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="img" value="" style="shape=image;aspect=fixed;imageAspect=0;image=execution-lifecycle.svg;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="840" height="380" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

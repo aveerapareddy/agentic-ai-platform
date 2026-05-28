@@ -1,0 +1,55 @@
+{
+  "description": "Example ReplayDiffSummary from GET /v1/executions/{source}/replay-diff/{replay}. Deterministic demo IDs.",
+  "source_execution_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "replay_execution_id": "d4e5f6a7-b8c9-0123-def0-234567890123",
+  "replay_mode": "exact",
+  "linked_to_source": true,
+  "total_differences": 4,
+  "significant_differences": 1,
+  "items": [
+    {
+      "category": "lineage",
+      "severity": "info",
+      "title": "Replay lineage",
+      "description": "Child execution linked via parent_execution_id and replay provenance block.",
+      "source_value": null,
+      "replay_value": "mode=exact, label=demo-replay",
+      "path": "input.__replay_provenance__",
+      "related_step_id": null,
+      "related_tool_call_id": null
+    },
+    {
+      "category": "execution_status",
+      "severity": "info",
+      "title": "Terminal status match",
+      "description": "Both executions reached completed.",
+      "source_value": "completed",
+      "replay_value": "completed",
+      "path": "status",
+      "related_step_id": null,
+      "related_tool_call_id": null
+    },
+    {
+      "category": "plan",
+      "severity": "warning",
+      "title": "Plan revision count",
+      "description": "Replay may materialize a new plan_id while preserving planner step names.",
+      "source_value": "plan revision v1",
+      "replay_value": "plan revision v1",
+      "path": "current_plan_id",
+      "related_step_id": null,
+      "related_tool_call_id": null
+    },
+    {
+      "category": "model_reasoning",
+      "severity": "significant",
+      "title": "Model invocation id",
+      "description": "Structured model outputs are not guaranteed byte-identical across replays unless provider is pinned.",
+      "source_value": "inv-00000000-0001",
+      "replay_value": "inv-00000000-0002",
+      "path": "steps[0].step_result.evidence.model_invocation_id",
+      "related_step_id": "e5f6a7b8-c9d0-1234-ef01-345678901234",
+      "related_tool_call_id": null
+    }
+  ]
+}

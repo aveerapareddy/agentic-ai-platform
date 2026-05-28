@@ -1,0 +1,67 @@
+/* Fixture theme — mirrors operator-console src/styles.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #141518;
+  --surface: #1e1f24;
+  --surface-hover: #26272e;
+  --border: #34363e;
+  --text: #ececef;
+  --muted: #8b8d96;
+  --accent: #5b8def;
+  --ok: #3d9e73;
+  --warn: #c9a227;
+  --err: #d14d4d;
+  --mono: ui-monospace, Menlo, monospace;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 720px;
+}
+.shell { display: flex; min-height: 720px; }
+.nav {
+  width: 200px;
+  border-right: 1px solid var(--border);
+  padding: var(--space-4);
+  background: var(--surface);
+}
+.nav h1 { font-size: 13px; font-weight: 600; margin: 0 0 var(--space-4); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.nav a { display: block; padding: var(--space-2) var(--space-3); color: var(--muted); text-decoration: none; border-radius: var(--radius); margin-bottom: 2px; font-size: 13px; }
+.nav a.active { background: var(--surface-hover); color: var(--accent); }
+.main { flex: 1; padding: var(--space-5); }
+.page-title { font-size: 20px; font-weight: 600; margin: 0 0 var(--space-4); }
+.mono { font-family: var(--mono); font-size: 12px; }
+.muted { color: var(--muted); }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); margin-bottom: var(--space-4); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; border: 1px solid var(--border); }
+.badge-ok { color: var(--ok); border-color: var(--ok); }
+.badge-warn { color: var(--warn); border-color: var(--warn); }
+.badge-live { color: var(--accent); border-color: var(--accent); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.value { font-size: 13px; }
+.trace-step { border-left: 2px solid var(--border); padding-left: var(--space-3); margin: var(--space-3) 0; }
+.trace-step h3 { margin: 0 0 var(--space-2); font-size: 13px; font-weight: 600; }
+.event { font-size: 12px; padding: var(--space-2); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 4px; color: var(--muted); }
+.sev-info { border-left: 3px solid var(--accent); }
+.sev-warn { border-left: 3px solid var(--warn); }
+.sev-sig { border-left: 3px solid var(--err); }
+.oc-btn {
+  font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+  border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); padding: var(--space-2) var(--space-4);
+}
