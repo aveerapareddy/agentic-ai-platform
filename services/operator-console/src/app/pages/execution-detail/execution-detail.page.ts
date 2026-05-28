@@ -1,7 +1,8 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Subscription, forkJoin, of } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 import { ExecutionApiService } from '../../core/api/execution-api.service';
 import { ExecutionStreamService } from '../../core/api/execution-stream.service';
 import { MetricsApiService } from '../../core/api/metrics-api.service';
@@ -50,7 +51,7 @@ const SECTION_LINKS = [
     @if (loadError) {
       <div class="oc-error" role="alert">{{ loadError }}</div>
     }
-    @if (loading) {
+    @if (initialLoading) {
       <div class="oc-skeleton-stack" aria-busy="true">
         <div class="oc-skeleton oc-skeleton--ribbon"></div>
         <div class="oc-skeleton oc-skeleton--panel"></div>
@@ -123,7 +124,7 @@ const SECTION_LINKS = [
           </div>
 
           <div id="approval">
-            <app-approval-panel [execution]="execution" (decided)="reload()" />
+            <app-approval-panel [execution]="execution" (decided)="reload(false)" />
           </div>
         </div>
       </div>
@@ -139,6 +140,7 @@ export class ExecutionDetailPage implements OnInit, OnDestroy {
   metricsLoading = false;
   metricsError: string | null = null;
   loading = true;
+  initialLoading = true;
   loadError: string | null = null;
   streamActive = false;
   streamError: string | null = null;
@@ -151,6 +153,9 @@ export class ExecutionDetailPage implements OnInit, OnDestroy {
 
   private executionId = '';
   private streamAbort?: AbortController;
+  private loadSub?: Subscription;
+
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -160,60 +165,94 @@ export class ExecutionDetailPage implements OnInit, OnDestroy {
   ) {}
 
   ngOnDestroy(): void {
+    this.loadSub?.unsubscribe();
     this.stopStream();
   }
 
   ngOnInit(): void {
-    this.route.paramMap.subscribe((pm) => {
-      const id = pm.get('executionId');
-      if (!id) {
-        this.loadError = 'Missing execution id';
-        this.loading = false;
-        return;
-      }
-      this.executionId = id;
-      this.reload();
+    this.route.paramMap
+      .pipe(
+        map((pm) => pm.get('executionId')),
+        switchMap((id) => {
+          if (!id) {
+            this.loadError = 'Missing execution id';
+            this.loading = false;
+            this.initialLoading = false;
+            return of(null);
+          }
+          this.executionId = id;
+          return this.fetchExecutionBundle(id);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((bundle) => {
+        if (!bundle) return;
+        this.applyBundle(bundle);
+      });
+  }
+
+  reload(hard = true): void {
+    if (!this.executionId) return;
+    this.loadSub?.unsubscribe();
+    if (hard) {
+      this.initialLoading = true;
+      this.execution = null;
+    }
+    this.loadSub = this.fetchExecutionBundle(this.executionId).subscribe((bundle) => {
+      if (bundle) this.applyBundle(bundle);
     });
   }
 
-  reload(): void {
+  private fetchExecutionBundle(executionId: string) {
     this.stopStream();
     this.newTimelineKeys.clear();
     this.streamError = null;
     this.loading = true;
     this.loadError = null;
-    this.metrics = null;
-    this.metricsError = null;
-    this.metricsLoading = false;
-    this.traceError = null;
-    forkJoin({
-      ex: this.api.getExecution(this.executionId),
-      tr: this.api.getTrace(this.executionId).pipe(
+    if (this.initialLoading) {
+      this.metrics = null;
+      this.metricsError = null;
+      this.metricsLoading = false;
+      this.traceError = null;
+    }
+    return forkJoin({
+      ex: this.api.getExecution(executionId),
+      tr: this.api.getTrace(executionId).pipe(
         catchError((e: Error) => of({ failed: true as const, message: e.message })),
       ),
-    }).subscribe({
-      next: ({ ex, tr }) => {
-        this.execution = ex;
-        if (tr && typeof tr === 'object' && 'failed' in tr && tr.failed) {
-          this.trace = null;
-          this.traceError = 'Could not load trace from api-gateway.';
-        } else {
-          this.trace = tr as TraceView;
-          this.traceError = null;
-        }
+    }).pipe(
+      catchError((e: Error) => {
         this.loading = false;
-        this.loadMetrics();
-        this.maybeStartStream();
-      },
-      error: (e: Error) => {
-        this.loading = false;
+        this.initialLoading = false;
         this.loadError = e.message;
         this.execution = null;
         this.trace = null;
         this.traceError = null;
         this.metrics = null;
-      },
-    });
+        return of(null);
+      }),
+    );
+  }
+
+  private applyBundle({
+    ex,
+    tr,
+  }: {
+    ex: ExecutionDetail;
+    tr: TraceView | { failed: true; message: string };
+  }): void {
+    this.execution = ex;
+    if (tr && typeof tr === 'object' && 'failed' in tr && tr.failed) {
+      this.trace = null;
+      this.traceError = 'Could not load trace from api-gateway.';
+    } else {
+      this.trace = tr as TraceView;
+      this.traceError = null;
+    }
+    this.loading = false;
+    this.initialLoading = false;
+    this.loadMetrics();
+    this.maybeStartStream();
   }
 
   private loadMetrics(): void {

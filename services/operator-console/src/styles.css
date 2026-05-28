@@ -746,16 +746,14 @@ table.oc-table .col-ts {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-.oc-sidebar__icon {
+.oc-sidebar__link app-nav-icon,
+.oc-sidebar__link .oc-nav-icon {
   flex-shrink: 0;
-  width: 1.5rem;
-  text-align: center;
-  font-size: 0.6875rem;
-  font-weight: 600;
   color: var(--muted);
 }
 
-.oc-sidebar__link--active .oc-sidebar__icon {
+.oc-sidebar__link--active app-nav-icon,
+.oc-sidebar__link--active .oc-nav-icon {
   color: var(--accent-muted);
 }
 
@@ -769,6 +767,8 @@ table.oc-table .col-ts {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .oc-topbar {
@@ -789,6 +789,14 @@ table.oc-table .col-ts {
 
 .oc-main--wide {
   max-width: 1280px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.oc-page-content {
+  display: block;
+  width: 100%;
 }
 
 .oc-live-pill {
@@ -864,38 +872,6 @@ table.oc-table .col-ts {
 .oc-exec-table .col-act {
   width: 2rem;
   text-align: right;
-}
-
-.oc-exec-row {
-  position: relative;
-}
-
-.oc-exec-row::after {
-  content: attr(data-preview);
-  position: absolute;
-  left: var(--space-4);
-  bottom: 100%;
-  margin-bottom: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-meta);
-  color: var(--text);
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(4px);
-  transition:
-    opacity 0.12s ease,
-    transform 0.12s ease;
-  z-index: 2;
-}
-
-.oc-exec-row:hover::after,
-.oc-exec-row:focus-visible::after {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .oc-table-foot {
@@ -1034,6 +1010,13 @@ table.oc-table .col-ts {
   }
   100% {
     background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oc-skeleton {
+    animation: none;
+    background: var(--surface-hover);
   }
 }
 

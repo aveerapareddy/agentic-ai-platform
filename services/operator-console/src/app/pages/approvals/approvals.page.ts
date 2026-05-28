@@ -20,7 +20,7 @@ import { PageHeaderComponent } from '../../layout/page-header.component';
     <div class="oc-filters">
       <label>
         Tenant ID
-        <input type="text" [(ngModel)]="tenantId" (ngModelChange)="reload()" name="tenant" />
+        <input type="text" [(ngModel)]="tenantId" name="tenant" />
       </label>
       <button type="button" class="oc-btn" (click)="reload()" [disabled]="loading">Refresh</button>
     </div>
@@ -28,7 +28,7 @@ import { PageHeaderComponent } from '../../layout/page-header.component';
     @if (loadError) {
       <div class="oc-error" role="alert">{{ loadError }}</div>
     }
-    @if (loading) {
+    @if (initialLoading) {
       <div class="oc-skeleton-stack" aria-busy="true">
         <div class="oc-skeleton oc-skeleton--table"></div>
       </div>
@@ -42,6 +42,7 @@ export class ApprovalsPage implements OnInit {
   tenantId = '';
   items: ExecutionListItem[] = [];
   loading = false;
+  initialLoading = true;
   loadError: string | null = null;
 
   constructor(
@@ -66,9 +67,11 @@ export class ApprovalsPage implements OnInit {
         next: (res) => {
           this.items = res.items;
           this.loading = false;
+          this.initialLoading = false;
         },
         error: (e: Error) => {
           this.loading = false;
+          this.initialLoading = false;
           this.loadError = e.message;
           this.items = [];
         },

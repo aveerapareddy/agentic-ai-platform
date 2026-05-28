@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import type { TraceView } from '../../core/models/execution.models';
 import { formatIsoShort } from '../../core/ui/format-util';
 import {
@@ -182,6 +182,7 @@ import {
       }
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     .tl-rail-wrap {
       display: grid;
@@ -350,19 +351,24 @@ import {
     }
   `,
 })
-export class TraceTimelineComponent {
+export class TraceTimelineComponent implements OnChanges {
   @Input() trace: TraceView | null = null;
   @Input() loading = false;
   @Input() error: string | null = null;
   @Input() totalLatencyMs: number | null = null;
   @Input() newEventKeys: Set<string> | null = null;
 
+  /** Cached — rebuilding on every change detection was freezing the UI on large traces. */
+  view = buildTraceTimelineView(null);
+
   formatLatencyMs = formatLatencyMs;
   payloadRows = payloadFieldRows;
   hasDetails = hasPayloadDetails;
 
-  get view() {
-    return buildTraceTimelineView(this.trace);
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['trace']) {
+      this.view = buildTraceTimelineView(this.trace);
+    }
   }
 
   get totalLatencyLabel(): string | null {

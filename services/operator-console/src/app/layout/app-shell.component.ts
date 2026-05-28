@@ -1,12 +1,14 @@
-import { Component, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
-import { NAV_SECTIONS, type NavItem } from '../core/ui/nav-config';
+import { NavIconComponent } from '../components/nav-icon/nav-icon.component';
+import { NAV_SECTIONS } from '../core/ui/nav-config';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NavIconComponent],
   template: `
     <div class="oc-app" [class.oc-app--collapsed]="sidebarCollapsed()">
       <aside class="oc-sidebar" aria-label="Primary navigation">
@@ -39,11 +41,12 @@ import { NAV_SECTIONS, type NavItem } from '../core/ui/nav-config';
                   <a
                     [routerLink]="item.path"
                     routerLinkActive="oc-sidebar__link--active"
-                    [routerLinkActiveOptions]="linkActiveOptions(item)"
+                    [routerLinkActiveOptions]="item.routerLinkActiveOptions"
                     class="oc-sidebar__link"
                     [title]="item.label"
+                    [attr.aria-label]="sidebarCollapsed() ? item.label : null"
                   >
-                    <span class="oc-sidebar__icon" aria-hidden="true">{{ item.icon }}</span>
+                    <app-nav-icon [icon]="item.icon" />
                     @if (!sidebarCollapsed()) {
                       <span class="oc-sidebar__label">{{ item.label }}</span>
                     }
@@ -79,22 +82,24 @@ import { NAV_SECTIONS, type NavItem } from '../core/ui/nav-config';
 export class AppShellComponent {
   readonly sections = NAV_SECTIONS;
   readonly sidebarCollapsed = signal(false);
-  readonly pageTitle = signal('Platform');
+  readonly pageTitle = signal('Executions');
   readonly liveRoute = signal(false);
 
-  constructor(private readonly router: Router) {
-    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe(() => {
-      this.syncChrome();
-    });
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    this.router.events
+      .pipe(
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => this.syncChrome());
     this.syncChrome();
   }
 
   toggleSidebar(): void {
     this.sidebarCollapsed.update((v) => !v);
-  }
-
-  linkActiveOptions(item: NavItem): { exact: boolean } {
-    return { exact: !item.matchPrefix };
   }
 
   private syncChrome(): void {
@@ -103,7 +108,10 @@ export class AppShellComponent {
     let title = 'Platform';
     for (const section of NAV_SECTIONS) {
       for (const item of section.items) {
-        if (url === item.path || (item.matchPrefix && url.startsWith(item.path + '/'))) {
+        if (
+          url === item.path ||
+          (!item.routerLinkActiveOptions.exact && url.startsWith(item.path + '/'))
+        ) {
           title = item.label;
           break;
         }

@@ -20,19 +20,19 @@ import { PageHeaderComponent } from '../../layout/page-header.component';
     <div class="oc-filters">
       <label>
         Tenant ID
-        <input type="text" [(ngModel)]="tenantId" (ngModelChange)="reload()" name="tenant" />
+        <input type="text" [(ngModel)]="tenantId" name="tenant" />
       </label>
       <label>
         Workflow
-        <input type="text" [(ngModel)]="workflowType" (ngModelChange)="reload()" name="wf" placeholder="(any)" />
+        <input type="text" [(ngModel)]="workflowType" name="wf" placeholder="(any)" />
       </label>
       <label>
         Status
-        <input type="text" [(ngModel)]="status" (ngModelChange)="reload()" name="st" placeholder="(any)" />
+        <input type="text" [(ngModel)]="status" name="st" placeholder="(any)" />
       </label>
       <label>
         Limit
-        <input type="number" [(ngModel)]="limit" (ngModelChange)="reload()" name="lim" min="1" max="500" />
+        <input type="number" [(ngModel)]="limit" name="lim" min="1" max="500" />
       </label>
       <button type="button" class="oc-btn" (click)="reload()" [disabled]="loading">Refresh</button>
     </div>
@@ -40,7 +40,7 @@ import { PageHeaderComponent } from '../../layout/page-header.component';
     @if (loadError) {
       <div class="oc-error" role="alert">{{ loadError }}</div>
     }
-    @if (loading) {
+    @if (initialLoading) {
       <div class="oc-skeleton-stack" aria-busy="true">
         <div class="oc-skeleton oc-skeleton--stat"></div>
         <div class="oc-skeleton oc-skeleton--panel"></div>
@@ -167,6 +167,7 @@ export class InsightsPage implements OnInit {
 
   summary: MuktiInsightsSummaryDto | null = null;
   loading = false;
+  initialLoading = true;
   loadError: string | null = null;
 
   constructor(private readonly insightsApi: InsightsApiService) {}
@@ -202,9 +203,11 @@ export class InsightsPage implements OnInit {
         next: (res) => {
           this.summary = res;
           this.loading = false;
+          this.initialLoading = false;
         },
         error: (e: Error) => {
           this.loading = false;
+          this.initialLoading = false;
           this.loadError = e.message;
           this.summary = null;
         },

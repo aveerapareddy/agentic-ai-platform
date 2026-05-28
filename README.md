@@ -1,157 +1,204 @@
 # Agentic AI Platform
 
-A governed execution control plane for multi-step workflows that use models, registered tools, and retrieval under explicit lifecycle, policy, and trace semantics. The repository targets an **internal platform** shape: durable executions, auditable decisions, and service boundaries suitable for extension—not a conversational product or framework-driven demo.
+**A governed execution control plane** for multi-step workflows over models, registered tools, and retrieval—with explicit lifecycle, policy gates, validation, and full traceability.
 
-## What the system is
+Built as an **internal platform** (not a chatbot or framework demo): durable executions, auditable policy and tool records, operator UI over a single HTTP ingress, and service boundaries you can extend without forking the execution model.
 
-- **Orchestrated executions**: `execution` → `plan` → `steps` with deterministic state transitions (`created` → `planning` → `executing` → `validating` → terminal states, plus `awaiting_approval` where policy requires it).
-- **Separated concerns**: policy evaluation (`policy-engine`), tool invocation (`tool-runtime`), retrieval (`knowledge-service`), structured model calls (`model-runtime`), operator and Mukti persistence (`feedback-service`), post-execution analysis (`mukti-agent`), coordinated by **`orchestrator`** only.
-- **Contracts first**: cross-service types live in `packages/common-schemas`; PostgreSQL schema in `infra/db/migrations/` aligns with persistence adapters in the orchestrator and feedback layers.
+---
 
-## Why it exists
+## What this is / is not
 
-Operational work over many systems needs **bounded automation**: side effects and high-risk actions must be **policy-gated**, **tool-audited**, and **replayable**. Model output alone is insufficient as a control mechanism. This codebase encodes that split: the control plane stays deterministic; models and tools operate inside step boundaries with structured inputs and outputs.
+| This **is** | This **is not** |
+|-------------|-----------------|
+| Step-based orchestration with deterministic state transitions | A prompt wrapper or conversational shell |
+| Policy-engine + tool-runtime separation from agent logic | Uncontrolled “god agent” side effects |
+| Post-execution Mukti analysis (advisory only) | Runtime self-modification from insights |
+| Angular **operator-console** over **api-gateway** only | UI-owned execution semantics |
+| Local Docker demo with **fake** model provider (reproducible) | Claimed production Kubernetes / multi-region HA |
 
-## Core workflows (intent vs current depth)
+Governance reference: [project constitution](docs/overview/project-constitution.md) · [end state](docs/overview/project-end-state.md).
 
-| Workflow | Role in the platform | Implementation today |
-|----------|----------------------|------------------------|
-| **Incident triage** | Structured analyze → evidence → validate → governance on escalation | **Full vertical** in orchestrator: planner, model-runtime for analyze/validate, tool-runtime + knowledge-service for `gather_evidence`, policy + approvals for `escalate_incident`, trace events. |
-| **Cost attribution** | Cross-system cost reasoning with retrieval and tools | **Implemented**: dedicated planner steps, knowledge retrieval, gateway allowlist; fake model-runtime for structured steps. |
-| **Policy-aware execution** | Deny / conditional / allow with proposals and approvals | **Implemented** on `incident_triage` completion path (policy-engine + persisted proposals, evaluations, approvals). |
-| **Feedback / Mukti** | Post-execution labels and advisory execution feedback | **Implemented**: `feedback-service` (operator + Mukti rows), `mukti-agent` deterministic analyzer, `build_mukti_analysis_input` for frozen snapshots; **no** mutation of live executions. |
+---
 
-## Architecture themes
+## Screenshots
 
-Deterministic scheduling and validation-before-success; policy and tools **not** embedded in the orchestrator’s rule set; **no** LangChain/LangGraph as the execution engine; trace materialized as timeline JSON on executions plus normalized rows (steps, results, tool calls, policy, approvals, feedback tables per migrations).
+Operator-console views (dark, information-dense; [ui-system](docs/design/ui-system.md)). Regenerate: `python scripts/capture_demo_screenshots.py` after `make docker-seed`.
 
-### Architecture (at a glance)
+| Explorer | Execution detail | Trace timeline |
+|:---:|:---:|:---:|
+| [![Execution explorer](docs/assets/screenshots/01-execution-explorer.png)](docs/assets/screenshots/01-execution-explorer.png) | [![Execution detail](docs/assets/screenshots/02-execution-detail.png)](docs/assets/screenshots/02-execution-detail.png) | [![Trace timeline](docs/assets/screenshots/03-trace-timeline.png)](docs/assets/screenshots/03-trace-timeline.png) |
+
+| Replay diff | Metrics | Mukti insights |
+|:---:|:---:|:---:|
+| [![Replay diff](docs/assets/screenshots/04-replay-comparison.png)](docs/assets/screenshots/04-replay-comparison.png) | [![Metrics](docs/assets/screenshots/05-metrics-evaluation.png)](docs/assets/screenshots/05-metrics-evaluation.png) | [![Mukti insights](docs/assets/screenshots/06-mukti-insights.png)](docs/assets/screenshots/06-mukti-insights.png) |
+
+| Policy simulation | Live / SSE | Workflows |
+|:---:|:---:|:---:|
+| [![Policy simulation](docs/assets/screenshots/07-policy-simulation.png)](docs/assets/screenshots/07-policy-simulation.png) | [![Live activity](docs/assets/screenshots/08-streaming-execution.png)](docs/assets/screenshots/08-streaming-execution.png) | [Incident triage](docs/assets/screenshots/10-incident-triage-workflow.png) · [Cost attribution](docs/assets/screenshots/09-cost-attribution-workflow.png) |
+
+Full index: [docs/assets/screenshots/](docs/assets/screenshots/).
+
+---
+
+## What is implemented
+
+Phases **1–8** are represented for **local demo depth**: execution core, **incident triage** and **cost attribution** workflows, governance (policy + approvals), tools and knowledge, model-runtime (default **fake**), feedback + Mukti, evaluation metrics, **api-gateway** (HTTP + SSE), **operator-console**.
+
+| Area | Status |
+|------|--------|
+| Orchestrator (plans, steps, validation, replay) | Implemented |
+| Policy-engine | Implemented |
+| Tool-runtime | Implemented |
+| Knowledge-service | Implemented |
+| Model-runtime (`MODEL_PROVIDER=fake` default) | Implemented |
+| Feedback-service | Implemented |
+| Mukti-agent (post-execution advisory) | Implemented |
+| Evaluation-engine (aggregates / replay diff) | Implemented |
+| API gateway (ingress, RBAC, SSE) | Implemented |
+| Operator-console | Implemented |
+| Local Docker stack (Postgres + gateway + console) | Implemented |
+
+**Repository layout vs local runtime:** the repo contains **10 logical Python services** under `services/`. The recommended local demo runs **3 long-running Docker containers**—`postgres`, `api-gateway`, `operator-console`—with platform runtimes **wired in-process inside the gateway image** for operational simplicity. Boundaries remain in code and contracts; this is not a monolith rewrite.
+
+---
+
+## Architecture overview
 
 ```text
-Clients / operator-console  →  api-gateway  →  orchestrator
-                                    │              ├── policy-engine
-                                    │              ├── tool-runtime
-                                    │              ├── knowledge-service
-                                    │              ├── model-runtime
-                                    │              └── feedback / Mukti / evaluation
-                                    └── PostgreSQL (durable mode)
+operator-console  →  api-gateway  →  orchestrator
+                          │              ├── policy-engine
+                          │              ├── tool-runtime
+                          │              ├── knowledge-service
+                          │              ├── model-runtime
+                          │              └── feedback / Mukti / evaluation
+                          └── PostgreSQL (compose default)
 ```
-
-Operator-console talks to **api-gateway only** (not orchestrator directly). Local Docker bundles runtime services in-process behind the gateway; logical boundaries remain in code.
 
 | Diagram | Description |
 |---------|-------------|
-| [System overview](docs/diagrams/system-overview.svg) | Services and trust boundaries |
-| [Execution lifecycle](docs/diagrams/execution-lifecycle.svg) | States, validation gate, replay lineage |
-| [Replay](docs/diagrams/replay-architecture.svg) | Source, child, provenance, diff |
-| [Streaming](docs/diagrams/streaming-architecture.svg) | SSE observational path |
-| [Cost workflow](docs/diagrams/cost-attribution-workflow.svg) | Planner steps and services |
+| [system-overview.svg](docs/diagrams/system-overview.svg) | Services, trust boundaries, console → gateway only |
+| [execution-lifecycle.svg](docs/diagrams/execution-lifecycle.svg) | States, validation gate, terminal outcomes |
+| [replay-architecture.svg](docs/diagrams/replay-architecture.svg) | Source execution, replay child, server diff |
+| [mukti-analysis-flow.svg](docs/diagrams/mukti-analysis-flow.svg) | Traces → execution_feedback → advisory insights |
+| [streaming-architecture.svg](docs/diagrams/streaming-architecture.svg) | SSE path to operator-console |
+| [cost-attribution-workflow.svg](docs/diagrams/cost-attribution-workflow.svg) | Cost workflow steps and service calls |
 
-Editable sources: `docs/diagrams/*.drawio` (diagrams.net) and matching SVG exports.
+Editable sources: `docs/diagrams/*.drawio` · index: [docs/diagrams/README.md](docs/diagrams/README.md).
+
+Deeper docs: [system overview](docs/architecture/system-overview.md) · [runtime model](docs/architecture/runtime-model.md) · [API design](docs/architecture/api-design.md).
+
+---
+
+## Demo walkthrough (what to click first)
+
+After [quick start](#quick-start) and `make docker-seed`:
+
+1. **Executions** — list filtered runs (`incident_triage`, `cost_attribution`).
+2. Open an **incident_triage** execution — summary, lifecycle steps, governance snippet.
+3. **Trace timeline** — grouped model / tool / policy / error events (expand payloads).
+4. **Replay** panel → create or open replay child → **Replay diff** (server-computed categories).
+5. **Metrics** (platform rollups) and per-execution evaluation on detail.
+6. **Mukti insights** — cross-execution advisory (`execution_feedback` must be seeded).
+7. **Policies** — read rule catalog; **simulate** (admin role in dev headers).
+8. **Live activity** — non-terminal runs; open detail for SSE **Live** badge on active executions.
+
+Guided write-ups: [incident triage](docs/workflows/incident-triage-walkthrough.md) · [cost attribution](docs/workflows/cost-attribution-walkthrough.md) · [replay investigation](docs/workflows/replay-investigation-walkthrough.md).
+
+Example artifacts: [incident trace](docs/examples/incident-trace.json) · [cost trace](docs/examples/cost-attribution-trace.json) · [replay diff sample](docs/examples/replay-diff-example.json).
+
+---
+
+## Quick start
+
+```bash
+cp .env.example .env
+make docker-up          # postgres, migrate, build api-gateway + operator-console
+make docker-seed        # incident + cost executions, replay, feedback, Mukti rows
+```
+
+| Endpoint | URL |
+|----------|-----|
+| **Operator console** | http://localhost:4200 |
+| **API gateway** | http://localhost:8080 |
+| **Runtime health** | http://localhost:8080/health/runtime |
+| **Prometheus metrics** | http://localhost:8080/metrics |
+
+No external LLM API keys when `MODEL_PROVIDER=fake` (compose default). Details: [local development runbook](docs/runbooks/local-development.md).
+
+**Troubleshooting**
+
+- First `make docker-up` can take **several minutes** (gateway image + `npm install` / `ng build` for console).
+- If **Mukti insights** show zero sample size, ensure seed completed against Postgres (`make docker-seed` logs `mukti insights sample_size > 0`); compose forces `GATEWAY_USE_POSTGRES=true`—host `.env` `GATEWAY_USE_POSTGRES=false` does not apply inside containers.
+- If seed or health fails: `make smoke-stack`, then `docker compose logs api-gateway` / `postgres`.
+- UI changes in Docker require rebuild: `docker compose build operator-console && docker compose up -d --force-recreate operator-console`.
+
+Host alternative: `make setup`, `docker compose up -d postgres`, `make migrate`, then `make run-gateway` + `make run-console` in separate terminals.
+
+```bash
+make test             # gateway + orchestrator unit tests
+make smoke-stack      # health + /v1/metrics + executions (stack must be up)
+```
+
+---
 
 ## Repository map
 
 | Path | Purpose |
 |------|---------|
-| `docs/` | Constitution, end-state, architecture, workflows, ADRs, runbooks |
+| `docs/` | Constitution, architecture, workflows, runbooks, diagrams — [docs index](docs/README.md) |
 | `packages/common-schemas/` | Shared Pydantic contracts |
-| `services/orchestrator/` | Execution engine, planner, persistence adapters, in-process demo entrypoint |
-| `services/policy-engine/` | Deterministic policy evaluation |
-| `services/tool-runtime/` | Registered tools (`incident_metadata_tool`, `signal_lookup_tool`) |
-| `services/knowledge-service/` | Local corpus retrieval for evidence |
-| `services/model-runtime/` | Structured reasoning client; default fake provider |
-| `services/feedback-service/` | Operator feedback + `execution_feedback` persistence |
-| `services/mukti-agent/` | Post-execution advisory analysis |
-| `services/api-gateway/` | HTTP ingress, RBAC, SSE streaming, in-process orchestrator wiring |
-| `services/operator-console/` | Angular operator UI (executions, trace, policies, metrics, insights) |
-| `infra/db/migrations/` | PostgreSQL DDL (`001_initial_schema.sql`, `002_operator_feedback.sql`) |
-| `scripts/` | Local migrations (`apply_migrations.py`), demo seed (`seed_demo_data.py`) |
-| `docker/` | Dockerfiles for gateway + console; `docker-compose.yml` local stack |
-| `docs/assets/screenshots/` | Demo UI captures (regenerable from fixtures) |
-| `docs/diagrams/` | Architecture SVG + draw.io sources |
-| `docs/examples/` | Bounded trace and replay-diff samples |
-| `evals/` | Present for future use |
+| `services/orchestrator/` | Execution engine, planners, persistence |
+| `services/policy-engine/` | Allow / deny / conditional evaluation |
+| `services/tool-runtime/` | Registered tools |
+| `services/knowledge-service/` | Retrieval for evidence steps |
+| `services/model-runtime/` | Structured model client (fake default) |
+| `services/feedback-service/` | Operator + Mukti persistence |
+| `services/mukti-agent/` | Post-execution analysis |
+| `services/evaluation-engine/` | Metrics and replay-diff projections |
+| `services/api-gateway/` | HTTP ingress, RBAC, SSE |
+| `services/operator-console/` | Angular operator UI |
+| `infra/db/migrations/` | PostgreSQL DDL |
+| `scripts/` | Migrations, `seed_demo_data.py`, screenshot capture |
+| `docker/` | Dockerfiles; `docker-compose.yml` local stack |
 
-## Current implementation status
+---
 
-Phases **1–8** (through operator console and gateway) are represented for local demo depth: execution core, **incident triage** and **cost attribution** workflows, governance, tools/knowledge, model-runtime (fake default), feedback + Mukti, **api-gateway** (HTTP + SSE), **operator-console**. Production packaging (Kubernetes, multi-region HA) is out of scope.
+## Key design documents
 
-## Local stack (recommended demo)
+| Document | Why read it |
+|----------|-------------|
+| [Constitution](docs/overview/project-constitution.md) | Non-negotiable platform rules |
+| [End state & phases](docs/overview/project-end-state.md) | Scope and maturity targets |
+| [System overview](docs/architecture/system-overview.md) | Service ownership |
+| [Runtime model](docs/architecture/runtime-model.md) | Execution semantics |
+| [API design](docs/architecture/api-design.md) | `/v1` surface |
+| [Security & guardrails](docs/architecture/security-and-guardrails.md) | RBAC and roles |
+| [UI system](docs/design/ui-system.md) | Operator-console design discipline |
 
-```bash
-cp .env.example .env
-make docker-up          # postgres + migrations + api-gateway + operator-console
-make docker-seed        # optional: seeded executions via real APIs
-```
+---
 
-| Endpoint | URL |
-|----------|-----|
-| Operator console | http://localhost:4200 |
-| API gateway | http://localhost:8080 |
-| Runtime health | http://localhost:8080/health/runtime |
-| Prometheus metrics | http://localhost:8080/metrics |
+## Current limitations (intentional for local demo)
 
-Uses **`MODEL_PROVIDER=fake`** by default — no external LLM API keys. See [local development runbook](docs/runbooks/local-development.md).
+- **Not** a production deployment: no Kubernetes manifests, multi-region HA, or cloud IaC in this repo.
+- **Default model provider is fake** — reproducible structured outputs without vendor API keys.
+- **Execution worker queue is in-process** in local gateway configuration (not a separate broker service).
+- **Prometheus `/metrics`** reflect the gateway process; not a full observability stack.
+- **Auth** uses dev header fallback (`GATEWAY_ALLOW_DEV_PRINCIPAL_FALLBACK`); not full enterprise OIDC.
+- **Service boundaries are logical in code**; local demo colocates runtimes in the **api-gateway** container—acceptable tradeoff for hiring/demo clarity, not a statement that production must be single-process.
 
-```bash
-make docker-seed      # incident + cost executions, replay, feedback
-make smoke-stack      # health + metrics + list smoke
-python scripts/capture_demo_screenshots.py   # regenerate UI screenshots from fixtures
-```
+Orchestrator-only path (no HTTP): see [local development](docs/runbooks/local-development.md#orchestrator-only-demo-no-http).
 
-Host-run alternative: `make setup`, `docker compose up -d postgres`, `make migrate`, then `make run-gateway` and `make run-console` in separate terminals.
+---
 
-### Operator console (screenshots)
+## Why this project matters (hiring signal)
 
-Dark, information-dense UI over gateway APIs ([ui-system](docs/design/ui-system.md)):
+- **Control plane thinking**: execution state, policy, and tools are separate; models do not own transitions.
+- **Inspectable operations**: trace timeline, replay diff, and metrics are derived from stored artifacts—not client-invented KPIs.
+- **Product surface discipline**: gateway + console are thin; contracts live in `common-schemas` and documented APIs.
+- **End-to-end demo**: two workflows, seed script, Docker stack, and UI screenshots you can verify locally in under an hour.
 
-| View | Screenshot |
-|------|------------|
-| Execution explorer | ![Executions](docs/assets/screenshots/01-execution-explorer.png) |
-| Trace timeline | ![Trace](docs/assets/screenshots/03-trace-timeline.png) |
-| Replay diff | ![Replay diff](docs/assets/screenshots/04-replay-comparison.png) |
-| Policy simulate | ![Policies](docs/assets/screenshots/07-policy-simulation.png) |
+---
 
-Full set: [docs/assets/screenshots/](docs/assets/screenshots/). Fixtures match seeded demo IDs; regenerate with `scripts/capture_demo_screenshots.py`.
+## Documentation index
 
-### Demo walkthroughs
-
-| Walkthrough | Focus |
-|-------------|--------|
-| [Incident triage](docs/workflows/incident-triage-walkthrough.md) | Analyze → evidence → validate → policy |
-| [Cost attribution](docs/workflows/cost-attribution-walkthrough.md) | Retrieval, tools, validation |
-| [Replay investigation](docs/workflows/replay-investigation-walkthrough.md) | Exact/investigative replay and diff |
-
-Example traces: [incident-trace.json](docs/examples/incident-trace.json), [cost-attribution-trace.json](docs/examples/cost-attribution-trace.json), [replay-diff-example.json](docs/examples/replay-diff-example.json).
-
-## Orchestrator-only demo (no HTTP)
-
-From the repository root, with Python 3.11+ and path deps installed:
-
-```bash
-cd services/orchestrator
-PYTHONPATH=".:../../packages/common-schemas/src:../policy-engine:../tool-runtime:../knowledge-service:../model-runtime:../feedback-service:../mukti-agent" \
-  python -m app.main
-```
-
-Creates an `incident_triage` execution in memory and runs to completion. Does not start HTTP or the console.
-
-### Tests (representative)
-
-```bash
-make test                 # gateway + orchestrator unit tests
-make smoke-stack          # after stack is up: health + /v1/metrics + executions
-make migrate-dry-run      # list SQL migrations without applying
-python -m pytest scripts/tests -q   # migration/seed/smoke script smoke
-```
-
-PostgreSQL-backed tests are optional (`ORCHESTRATOR_TEST_DATABASE_URL`); see `app/tests/test_postgres_repository_integration.py`.
-
-## Documentation
-
-- [Constitution](docs/overview/project-constitution.md) — non-negotiable principles  
-- [End state & phases](docs/overview/project-end-state.md) — scope and maturity targets  
-- [System overview](docs/architecture/system-overview.md) — services and trust boundaries  
-- [Runtime model](docs/architecture/runtime-model.md) — execution semantics  
-- [API design](docs/architecture/api-design.md) — HTTP surface (gateway implements core `/v1` routes)
-- [Local development](docs/runbooks/local-development.md) — Docker stack, migrations, seed, troubleshooting
+Compact map of `docs/`: **[docs/README.md](docs/README.md)**.

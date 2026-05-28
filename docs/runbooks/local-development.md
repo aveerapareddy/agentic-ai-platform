@@ -154,4 +154,4 @@ See [incident-workflow-demo.md](incident-workflow-demo.md).
 
 - Not production HA, Kubernetes, or cloud IaC.
 - Single gateway container bundles runtime services for convenience.
-- Mukti `execution_feedback` rows are not seeded via HTTP (insights use executions + operator feedback); full Mukti persistence path is available in orchestrator tests.
+- Mukti `execution_feedback` for insights requires Postgres-backed seed (`make docker-seed` with compose defaults); host in-memory gateway (`GATEWAY_USE_POSTGRES=false`) will skip Mukti persistence in seed.

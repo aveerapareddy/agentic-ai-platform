@@ -30,7 +30,7 @@ const ACTIVE_STATUSES = new Set(['created', 'planning', 'executing', 'validating
     @if (loadError) {
       <div class="oc-error" role="alert">{{ loadError }}</div>
     }
-    @if (loading && !items.length) {
+    @if (initialLoading) {
       <div class="oc-skeleton-stack" aria-busy="true">
         @for (i of [1, 2, 3]; track i) {
           <div class="oc-skeleton oc-skeleton--row"></div>
@@ -70,6 +70,7 @@ const ACTIVE_STATUSES = new Set(['created', 'planning', 'executing', 'validating
 export class LiveActivityPage implements OnInit, OnDestroy {
   items: ExecutionListItem[] = [];
   loading = false;
+  initialLoading = true;
   loadError: string | null = null;
   polling = true;
   pollSec = 8;
@@ -102,9 +103,11 @@ export class LiveActivityPage implements OnInit, OnDestroy {
       next: (res) => {
         this.items = res.items;
         this.loading = false;
+        this.initialLoading = false;
       },
       error: (e: Error) => {
         this.loading = false;
+        this.initialLoading = false;
         this.loadError = e.message;
       },
     });

@@ -10,7 +10,7 @@ import { workflowBadgeClass, workflowLabel } from '../../core/ui/workflow-util';
   template: `
     @if (items.length === 0) {
       <div class="oc-empty-state">
-        <p class="oc-empty-state__title">No executions</p>
+        <p class="oc-empty-state__title">No executions in this view</p>
         <p class="oc-meta">Adjust filters or refresh after new runs complete on api-gateway.</p>
       </div>
     } @else {
@@ -28,20 +28,17 @@ import { workflowBadgeClass, workflowLabel } from '../../core/ui/workflow-util';
           <tbody>
             @for (row of items; track row.execution_id) {
               <tr
-                class="oc-exec-row"
                 tabindex="0"
-                [attr.data-preview]="previewText(row)"
+                [title]="row.execution_id + ' · ' + row.workflow_type + ' · ' + row.status"
                 (click)="select.emit(row.execution_id)"
                 (keyup.enter)="select.emit(row.execution_id)"
                 (keyup.space)="$event.preventDefault(); select.emit(row.execution_id)"
               >
                 <td class="col-id">
-                  <span class="mono oc-exec-row__id" [title]="row.execution_id">{{ shortId(row.execution_id) }}</span>
+                  <span class="mono oc-exec-row__id">{{ shortId(row.execution_id) }}</span>
                 </td>
                 <td class="col-wf">
-                  <span [class]="wfClass(row.workflow_type)" [title]="row.workflow_type">{{
-                    wfLabel(row.workflow_type)
-                  }}</span>
+                  <span [class]="wfClass(row.workflow_type)">{{ wfLabel(row.workflow_type) }}</span>
                 </td>
                 <td class="col-st">
                   <span class="status-badge {{ statusClass(row.status) }}">{{ row.status }}</span>
@@ -67,8 +64,4 @@ export class ExecutionListComponent {
   statusClass = executionStatusModifier;
   wfClass = workflowBadgeClass;
   wfLabel = workflowLabel;
-
-  previewText(row: ExecutionListItem): string {
-    return `${row.workflow_type} · ${row.status} · ${row.created_at}`;
-  }
 }
